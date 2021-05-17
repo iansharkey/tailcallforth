@@ -182,7 +182,7 @@ struct word TERMINATE = { .prev = &QUADRUPLE, .name = "TERM", .codeword = termin
 
 struct word ADD = { .prev = &TERMINATE, .name = "+", .codeword = add };
 
-struct word TWO = { .prev = &ADD, .name = "TWO", .codeword = docol, .extra = { &LIT.codeword, (void*)2, &DUP.codeword, &ADD.codeword, &TERMINATE.codeword } };
+struct word FOUR = { .prev = &ADD, .name = "FOUR", .codeword = docol, .extra = { &LIT.codeword, (void*)2, &DUP.codeword, &ADD.codeword, &EXIT.codeword } };
 
 int main(int argc, char** argv)
 {
@@ -197,7 +197,7 @@ int main(int argc, char** argv)
   void** retstacktop = &returnstack[0];
   void** here = &buffer[0];
   void** latest = buffer;
-  void* ip[] = { &LIT.codeword, (void*)3, &QUADRUPLE.codeword, &TERMINATE.codeword };
+  void* ip[] = { &FOUR.codeword, &QUADRUPLE.codeword, &TERMINATE.codeword };
   block blah = docol;
   
   
