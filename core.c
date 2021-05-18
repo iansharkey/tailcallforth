@@ -62,7 +62,7 @@ static __attribute__((noinline)) void next(PARAMS) {
 
 void docol(PARAMS) {
   struct word* currentword = container_of(*(void**)ip, struct word, codeword);
-    printf("docol'ing %.6s, currentcodeword: %p\n", currentword->name, currentcodeword);
+  //    printf("docol'ing %.6s, currentcodeword: %p\n", currentword->name, currentcodeword);
     *(++retstacktop) = currentcodeword;
     currentcodeword = &currentword->extra[0];
     NEXT;
@@ -75,6 +75,38 @@ void exit_(PARAMS) {
 }
 
 
+void swap(PARAMS) {
+  void *a, *b;
+  a = *stacktop;
+  b = *(stacktop-1);
+  *stacktop = b;
+  *(stacktop-1) = a;
+  NEXT;
+}
+
+
+void over(PARAMS) {
+  stacktop++;
+  *stacktop = *(stacktop-2);
+  NEXT;
+}
+
+void twodrop(PARAMS) {
+  stacktop -= 2;
+  NEXT;
+}
+
+
+void dupnz(PARAMS) {
+  void *value = *stacktop;
+  if (value) {
+    stacktop++;
+    *stacktop = value;
+  }
+    
+  NEXT;
+}
+
 void dup(PARAMS) {
     *(stacktop+1) = *stacktop;
     stacktop++;
@@ -86,11 +118,6 @@ void drop(PARAMS) {
     NEXT;
 }
 
-void mul(PARAMS) {
-    *(stacktop-1) = (void*)((size_t)(*stacktop) * (size_t)*(stacktop-1));
-    stacktop--;
-    NEXT;
-}
 
 void lit(PARAMS) {
     *(++stacktop) = *(void**)currentcodeword;
@@ -99,9 +126,43 @@ void lit(PARAMS) {
 }
 
 void add(PARAMS) {
-  *(stacktop-1) = (void*)((size_t)(*stacktop) + (size_t)*(stacktop-1));
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) + *(intptr_t*)stacktop;
+  stacktop--;
   NEXT;
 }
+
+void sub(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) - *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+
+void mul(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) * *(intptr_t*)stacktop);
+    stacktop--;
+    NEXT;
+}
+
+
+void divmod(PARAMS) {
+  intptr_t numerator = *(intptr_t*)(stacktop-1);
+  intptr_t denominator = *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(numerator / denominator);
+  *stacktop = (void*)(numerator % denominator);
+    NEXT;
+}
+
+void incr(PARAMS) {
+  *(intptr_t*)stacktop += 1;
+  NEXT;
+}
+
+void decr(PARAMS) {
+  *(intptr_t*)stacktop -= 1;
+  NEXT;
+}
+
 
 void peek(PARAMS) {
     *stacktop = *((void**)*stacktop);
@@ -124,9 +185,176 @@ void rbrac(PARAMS) {
 }
 
 void terminate(PARAMS) {
-  exit(*(int*)stacktop);
+  exit(*(intptr_t*)stacktop);
   NEXT;
 }
+
+
+void equ(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) == *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+
+void nequ(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) != *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+void lt(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) < *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+void gt(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) > *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+
+void lte(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) <= *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+void gte(PARAMS) {
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) >= *(intptr_t*)stacktop;
+  stacktop--;
+  NEXT;
+}
+
+void zequ(PARAMS) {
+  *stacktop = (void*)(*(intptr_t*)stacktop == 0);
+  NEXT;
+}
+
+void znequ(PARAMS) {
+  *stacktop = *(intptr_t*)stacktop != 0;
+  NEXT;
+}
+
+
+void zlt(PARAMS) {
+  *stacktop = *(intptr_t*)stacktop < 0;
+  NEXT;
+}
+
+void zgt(PARAMS) {
+  *stacktop = *(intptr_t*)stacktop > 0;
+  NEXT;
+}
+
+
+void zlte(PARAMS) {
+  *stacktop = *(intptr_t*)stacktop <= 0;
+  NEXT;
+}
+
+
+void zgte(PARAMS) {
+  *stacktop = (void*)(*(intptr_t*)stacktop >= 0);
+  NEXT;
+}
+
+
+void bitand(PARAMS) {
+  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) & *(intptr_t*)stacktop);
+  stacktop--;
+  NEXT;
+}
+
+
+void bitor(PARAMS) {
+  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) | *(intptr_t*)stacktop);
+  stacktop--;
+  NEXT;
+}
+
+void bitxor(PARAMS) {
+  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) ^ *((intptr_t*)stacktop));
+  stacktop--;
+  NEXT;
+}
+
+
+void bitnot(PARAMS) {
+  *stacktop = (void*)~(*(intptr_t*)stacktop);
+  NEXT;
+}
+
+
+
+void tor(PARAMS) {
+  stacktop++;
+  *stacktop = *retstacktop;
+  retstacktop--;
+  NEXT;
+}
+
+
+void fromr(PARAMS) {
+  retstacktop++;
+  *retstacktop = *stacktop;
+  stacktop--;
+  NEXT;
+}
+
+void rspfetch(PARAMS) {
+  stacktop++;
+  *stacktop = *retstacktop;
+  NEXT;
+}
+
+void rspstore(PARAMS) {
+  *retstacktop = *stacktop;
+  stacktop--;
+  NEXT;
+}
+
+
+void rspdrop(PARAMS) {
+  retstacktop--;
+  NEXT;
+}
+
+
+void dspfetch(PARAMS) {
+  stacktop++;
+  *stacktop = stacktop;
+  NEXT;
+}
+
+void dspstore(PARAMS) {
+  stacktop = (void**)*stacktop;
+  NEXT;
+}
+
+
+/*
+TODO
+ x sub, divmod, incr, decr
+ x logical operators
+ x comparison operators
+ stack operators (swap, rot, over, dsp@, dsp!)  
+ memory operators (store, addstore, substore, byte store, byte copy, byte move)
+ builtin variables (state, here, latest, s0, base)
+ return stack (>R, R>,  RSP@, RSP!, RDROP)
+ input/output
+ dictionary (find, >CFA, >DFA)
+ compile (:, ;, create, header_comma, dodoes, hidden, hide, tick)
+ branching (branch, 0branch)
+ strings (litstring, tell)
+ interpreter (quit, interpret)
+ misc (execute, 
+ 
+ 
+
+ */
 
 
 void display_number(PARAMS) {
@@ -181,8 +409,15 @@ struct word QUADRUPLE = { .prev = &RBRAC, .name = "QUAD", .codeword = docol, .ex
 struct word TERMINATE = { .prev = &QUADRUPLE, .name = "TERM", .codeword = terminate };
 
 struct word ADD = { .prev = &TERMINATE, .name = "+", .codeword = add };
+struct word SUB = { .prev = &ADD, .name = "-", .codeword = sub };
 
-struct word FOUR = { .prev = &ADD, .name = "FOUR", .codeword = docol, .extra = { &LIT.codeword, (void*)2, &DUP.codeword, &ADD.codeword, &EXIT.codeword } };
+struct word FOUR = { .prev = &SUB, .name = "FOUR", .codeword = docol, .extra = { &LIT.codeword, (void*)2, &DUP.codeword, &ADD.codeword, &EXIT.codeword } };
+
+struct word DISPLAY_NUMBER = { .prev = &FOUR, .name = ".", .codeword = display_number };
+struct word INCR = { .prev = &DISPLAY_NUMBER, .name = "1+", .codeword = incr };
+struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
+
+
 
 int main(int argc, char** argv)
 {
@@ -197,7 +432,7 @@ int main(int argc, char** argv)
   void** retstacktop = &returnstack[0];
   void** here = &buffer[0];
   void** latest = buffer;
-  void* ip[] = { &FOUR.codeword, &QUADRUPLE.codeword, &TERMINATE.codeword };
+  void* ip[] = { &FOUR.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
   block blah = docol;
   
   
