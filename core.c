@@ -44,33 +44,34 @@ struct word {
 // datastack: void** - 
 // 
 
-#define PARAMS void* ip, void* currentcodeword, void** stacktop, void** retstacktop, void** latest, void** here, enum INTERPRETER_STATE state
+#define PARAMS void* esi, void* eax, void** stacktop, void** retstacktop, void** latest, void** here, enum INTERPRETER_STATE state
 
 
 static __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
-  block ip_ = **((block**)currentcodeword);
-  
-    
-    __attribute__((musttail)) return (ip_)(currentcodeword, ((void**)currentcodeword)+1, stacktop, retstacktop, latest, here, state);
+  eax = *(void**)esi;
+  esi = ((void**)esi)+1;
+  block eax_ = *(block*)eax;
+
+  __attribute__((musttail)) return eax_(esi, eax, stacktop, retstacktop, latest, here, state);
     
 }
-#define NEXT __attribute__((musttail)) return next(ip, currentcodeword, stacktop, retstacktop, latest, here, state)
+#define NEXT __attribute__((musttail)) return next(esi, eax, stacktop, retstacktop, latest, here, state)
 
 
 
 
 void docol(PARAMS) {
-  struct word* currentword = container_of(*(void**)ip, struct word, codeword);
   //    printf("docol'ing %.6s, currentcodeword: %p\n", currentword->name, currentcodeword);
-    *(++retstacktop) = currentcodeword;
-    currentcodeword = &currentword->extra[0];
+    *(++retstacktop) = esi;
+    eax = ((void**)eax)+1;
+    esi = eax;
     NEXT;
 }
 
 
 void exit_(PARAMS) {
-    currentcodeword = *(retstacktop--);
+    esi = *(retstacktop--);
     NEXT;
 }
 
@@ -120,8 +121,8 @@ void drop(PARAMS) {
 
 
 void lit(PARAMS) {
-    *(++stacktop) = *(void**)currentcodeword;
-    currentcodeword = (block*)currentcodeword+1;
+    *(++stacktop) = *(void**)esi;
+    esi = (block*)esi+1;
     NEXT;
 }
 
@@ -335,6 +336,29 @@ void dspstore(PARAMS) {
 }
 
 
+void branch(PARAMS) {
+  intptr_t offset = *(intptr_t*)esi;
+  esi += offset;
+
+  NEXT;
+}
+
+void zbranch(PARAMS) {
+  void* value = *stacktop;
+  stacktop--;
+  if (value)
+  {
+     intptr_t offset = *(intptr_t*)esi;
+     esi += offset;
+  }
+  else
+  {
+    esi += 1;
+  }
+  NEXT;
+}
+
+
 /*
 TODO
  x sub, divmod, incr, decr
@@ -417,6 +441,7 @@ struct word DISPLAY_NUMBER = { .prev = &FOUR, .name = ".", .codeword = display_n
 struct word INCR = { .prev = &DISPLAY_NUMBER, .name = "1+", .codeword = incr };
 struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
 
+struct word BRANCH = {.prev = &DECR, .name = "BRANCH", .codeword = branch };
 
 
 int main(int argc, char** argv)
@@ -425,18 +450,15 @@ int main(int argc, char** argv)
   void* datastack[256];
   void* returnstack[256];
   void* buffer[256];
-  void* currentip;
-
 
   void** stacktop = &datastack[0];
   void** retstacktop = &returnstack[0];
   void** here = &buffer[0];
   void** latest = buffer;
+
   void* ip[] = { &FOUR.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
-  block blah = docol;
   
-  
-  next(ip, &ip, stacktop, retstacktop, latest, here, IMMEDIATELY);
+  next(&ip[0], 0, stacktop, retstacktop, latest, here, IMMEDIATELY);
   
   
   return 0;
