@@ -13,11 +13,16 @@ enum WORD_FLAGS {
     IMMEDIATE
 };
 
+
+struct usefulstate;
+
+
+
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
-typedef void (*block)(void*, void*, void**, void**, void**, void**, enum INTERPRETER_STATE);
+typedef void (*block)(struct usefulstate*, void*, void*, void**, void**);
 
 //void* datastack_[256];
 //void* returnstack_[256];
@@ -40,11 +45,23 @@ struct word {
 };
 
 
+struct usefulstate {
+  struct word *latest;
+  void **here;
+  void **dp;
+  int (*getnexttoken)(struct usefulstate*, void *ctx);
+  char token[33];
+  intptr_t length;
+  void *ctx;
+  enum INTERPRETER_STATE state;
+};
+
+
 // currentcodeword: block - pointer to the codeword within a definition
 // datastack: void** - 
 // 
 
-#define PARAMS void* esi, void* eax, void** stacktop, void** retstacktop, void** latest, void** here, enum INTERPRETER_STATE state
+#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop
 
 
 static __attribute__((noinline)) void next(PARAMS) {
@@ -53,17 +70,17 @@ static __attribute__((noinline)) void next(PARAMS) {
   esi = ((void**)esi)+1;
   block eax_ = *(block*)eax;
 
-  __attribute__((musttail)) return eax_(esi, eax, stacktop, retstacktop, latest, here, state);
+  __attribute__((musttail)) return eax_(state, esi, eax, stacktop, retstacktop);
     
 }
-#define NEXT __attribute__((musttail)) return next(esi, eax, stacktop, retstacktop, latest, here, state)
+#define NEXT __attribute__((musttail)) return next(state, esi, eax, stacktop, retstacktop)
 
 
 
 
 void docol(PARAMS) {
   //    printf("docol'ing %.6s, currentcodeword: %p\n", currentword->name, currentcodeword);
-    *(++retstacktop) = esi;
+    *(--retstacktop) = esi;
     eax = ((void**)eax)+1;
     esi = eax;
     NEXT;
@@ -71,29 +88,29 @@ void docol(PARAMS) {
 
 
 void exit_(PARAMS) {
-    esi = *(retstacktop--);
+    esi = *retstacktop++;
     NEXT;
 }
 
 
 void swap(PARAMS) {
   void *a, *b;
-  a = *stacktop;
-  b = *(stacktop-1);
-  *stacktop = b;
-  *(stacktop-1) = a;
+  a = *stacktop++;
+  b = *stacktop++;
+  *(--stacktop) = a;
+  *(--stacktop) = b;
   NEXT;
 }
 
 
 void over(PARAMS) {
-  stacktop++;
-  *stacktop = *(stacktop-2);
+  void *value = *(stacktop+2);
+  *(--stacktop) = value;
   NEXT;
 }
 
 void twodrop(PARAMS) {
-  stacktop -= 2;
+  stacktop += 2;
   NEXT;
 }
 
@@ -101,48 +118,51 @@ void twodrop(PARAMS) {
 void dupnz(PARAMS) {
   void *value = *stacktop;
   if (value) {
-    stacktop++;
-    *stacktop = value;
+    *(--stacktop) = value;
   }
     
   NEXT;
 }
 
 void dup(PARAMS) {
-    *(stacktop+1) = *stacktop;
+  void *value = *stacktop;
+  *(--stacktop) = value;
+  NEXT;
+}
+
+void drop(PARAMS) {
     stacktop++;
     NEXT;
 }
 
-void drop(PARAMS) {
-    stacktop--;
-    NEXT;
-}
 
 
 void lit(PARAMS) {
-    *(++stacktop) = *(void**)esi;
+    *(--stacktop) = *(void**)esi;
     esi = (block*)esi+1;
     NEXT;
 }
 
 void add(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) + *(intptr_t*)stacktop;
-  stacktop--;
+  intptr_t a = *((intptr_t*)stacktop++);
+  intptr_t b = *((intptr_t*)stacktop++);
+  *(--stacktop) = (void*)(a+b);
   NEXT;
 }
 
 void sub(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) - *(intptr_t*)stacktop;
-  stacktop--;
+  intptr_t a = *((intptr_t*)stacktop++);
+  intptr_t b = *((intptr_t*)stacktop++);
+  *(--stacktop) = (void*)(a-b);
   NEXT;
 }
 
 
 void mul(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) * *(intptr_t*)stacktop);
-    stacktop--;
-    NEXT;
+  intptr_t a = *(intptr_t*)stacktop++;
+  intptr_t b = *(intptr_t*)stacktop++;
+  *(--stacktop) = (void*)(a*b);
+  NEXT;
 }
 
 
@@ -166,22 +186,24 @@ void decr(PARAMS) {
 
 
 void peek(PARAMS) {
-    *stacktop = *((void**)*stacktop);
-    NEXT;
+  void *value = *((void**)*stacktop);
+  *(--stacktop) = value;
+  NEXT;
 }
 
 void comma(PARAMS) {
-    *(++here) = *(stacktop--);
-    NEXT;
+  void **dp = state->dp;
+  *dp++ = *stacktop++;
+  NEXT;
 }
 
 void lbrac(PARAMS) {
-    state = IMMEDIATELY;
+    state->state = IMMEDIATELY;
     NEXT;
 }
 
 void rbrac(PARAMS) {
-    state = COMPILING;
+    state->state = COMPILING;
     NEXT;
 }
 
@@ -192,8 +214,9 @@ void terminate(PARAMS) {
 
 
 void equ(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) == *(intptr_t*)stacktop;
-  stacktop--;
+  intptr_t a = *((intptr_t*)(stacktop++));
+  intptr_t b = *((intptr_t*)(stacktop++));
+  *(--stacktop) = (void*)(intptr_t)(a == b);
   NEXT;
 }
 
@@ -241,7 +264,7 @@ void znequ(PARAMS) {
 
 
 void zlt(PARAMS) {
-  *stacktop = *(intptr_t*)stacktop < 0;
+  *stacktop = (*(intptr_t*)stacktop) < 0;
   NEXT;
 }
 
@@ -291,29 +314,26 @@ void bitnot(PARAMS) {
 
 
 void tor(PARAMS) {
-  stacktop++;
-  *stacktop = *retstacktop;
-  retstacktop--;
+
+  *(--stacktop) = *retstacktop;
+  retstacktop++;
   NEXT;
 }
 
 
 void fromr(PARAMS) {
-  retstacktop++;
-  *retstacktop = *stacktop;
-  stacktop--;
+  *(--retstacktop) = *stacktop++;
+
   NEXT;
 }
 
 void rspfetch(PARAMS) {
-  stacktop++;
-  *stacktop = *retstacktop;
+  *(--stacktop) = *retstacktop;
   NEXT;
 }
 
 void rspstore(PARAMS) {
-  *retstacktop = *stacktop;
-  stacktop--;
+  *retstacktop = *stacktop++;
   NEXT;
 }
 
@@ -325,8 +345,8 @@ void rspdrop(PARAMS) {
 
 
 void dspfetch(PARAMS) {
-  stacktop++;
-  *stacktop = stacktop;
+
+  *(--stacktop) = stacktop;
   NEXT;
 }
 
@@ -344,8 +364,7 @@ void branch(PARAMS) {
 }
 
 void zbranch(PARAMS) {
-  void* value = *stacktop;
-  stacktop--;
+  void* value = *stacktop++;
   if (value)
   {
      intptr_t offset = *(intptr_t*)esi;
@@ -357,6 +376,7 @@ void zbranch(PARAMS) {
   }
   NEXT;
 }
+
 
 
 /*
@@ -371,7 +391,7 @@ TODO
  input/output
  dictionary (find, >CFA, >DFA)
  compile (:, ;, create, header_comma, dodoes, hidden, hide, tick)
- branching (branch, 0branch)
+ x branching (branch, 0branch)
  strings (litstring, tell)
  interpreter (quit, interpret)
  misc (execute, 
@@ -382,16 +402,16 @@ TODO
 
 
 void display_number(PARAMS) {
-  int num = *((int*)stacktop--);
+  int num = *((int*)stacktop++);
   printf("%d\n", num);
   NEXT;
 }
 
 void find(PARAMS) {
-    struct word* word = container_of(*latest, struct word, codeword);
+  struct word *word = state->latest;
     
     while (word) {
-        if (memcmp(word->name, *stacktop, 6) == 0) {
+      if (((word->flags & HIDDEN) != HIDDEN) && (memcmp(word->name, *stacktop, 6) == 0)) {
             *stacktop = word;
             NEXT;
         }
@@ -401,6 +421,47 @@ void find(PARAMS) {
     NEXT;
 }
 
+
+void headercomma(PARAMS) {
+  int length = *((intptr_t*)stacktop++);
+  char *name = *((char**)stacktop++);
+  void **dp = state->dp;
+  
+  struct word *newword = (struct word*)*dp;
+  memcpy(newword->name, name, 6);
+  newword->prev = state->latest;
+  newword->flags = 0;
+
+  state->dp = (void**)&newword->codeword;
+  state->latest = newword;
+
+  NEXT;
+}
+
+void immediate(PARAMS) {
+  state->latest->flags ^= IMMEDIATE;
+  NEXT;
+}
+
+void word(PARAMS) {
+  char *name;
+  intptr_t length = state->getnexttoken(state, state->ctx);
+
+  *(--stacktop) = state->token;
+  *(--stacktop) = (void*)state->length;
+  
+  NEXT;
+}
+
+
+
+void  number(PARAMS) {
+  intptr_t length = *stacktop++;
+  char *s = *stacktop++;
+  long value = strtol(s, NULL, 10);
+  *(--stacktop) = value;
+  NEXT;
+}
 
 struct word PEEK = { .prev = NULL, .name = "PEEK",
                      .codeword = peek };
@@ -443,6 +504,18 @@ struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
 
 struct word BRANCH = {.prev = &DECR, .name = "BRANCH", .codeword = branch };
 
+struct word WORD = {.prev = &BRANCH, .name = "WORD", .codeword = word };
+
+struct word NUMBER = {.prev = &WORD, .name = "NUMBER", .codeword = number };
+
+int scanf_token(struct usefulstate *state, void *ctx) {
+  int length;
+  int rv = scanf(" %32s%n", state->token, &length);
+  state->token[32] = 0;
+  state->length = length;
+  return rv;  
+}
+
 
 int main(int argc, char** argv)
 {
@@ -451,14 +524,19 @@ int main(int argc, char** argv)
   void* returnstack[256];
   void* buffer[256];
 
-  void** stacktop = &datastack[0];
-  void** retstacktop = &returnstack[0];
+  void** stacktop = &datastack[255];
+  void** retstacktop = &returnstack[255];
   void** here = &buffer[0];
-  void** latest = buffer;
 
-  void* ip[] = { &FOUR.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
+  struct usefulstate state;
+  state.getnexttoken = scanf_token;
+  state.here = here;
+  state.dp = buffer;
+  state.latest = &BRANCH;
   
-  next(&ip[0], 0, stacktop, retstacktop, latest, here, IMMEDIATELY);
+  void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
+  
+  next(&state, &ip[0], 0, stacktop, retstacktop);
   
   
   return 0;
