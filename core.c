@@ -167,11 +167,11 @@ void mul(PARAMS) {
 
 
 void divmod(PARAMS) {
-  intptr_t numerator = *(intptr_t*)(stacktop-1);
-  intptr_t denominator = *(intptr_t*)stacktop;
-  *(stacktop-1) = (void*)(numerator / denominator);
-  *stacktop = (void*)(numerator % denominator);
-    NEXT;
+  intptr_t numerator = *(intptr_t*)stacktop++;
+  intptr_t denominator = *(intptr_t*)stacktop++;
+  *(--stacktop) = (void*)(numerator / denominator);
+  *(--stacktop) = (void*)(numerator % denominator);
+  NEXT;
 }
 
 void incr(PARAMS) {
@@ -388,7 +388,7 @@ TODO
  memory operators (store, addstore, substore, byte store, byte copy, byte move)
  builtin variables (state, here, latest, s0, base)
  return stack (>R, R>,  RSP@, RSP!, RDROP)
- input/output
+ input/output (word, number, emit)
  dictionary (find, >CFA, >DFA)
  compile (:, ;, create, header_comma, dodoes, hidden, hide, tick)
  x branching (branch, 0branch)
