@@ -4,70 +4,10 @@
 #include <stddef.h>
 #include <string.h>
 
-enum INTERPRETER_STATE {
-    COMPILING,
-    IMMEDIATELY
-};
-
-enum WORD_FLAGS {
-    F_HIDDEN = 1,
-    F_IMMEDIATE = 2
-};
+#include "core.h"
 
 
-struct usefulstate;
-
-
-
-#define container_of(ptr, type, member) ({                      \
-        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,member) );})
-
-typedef void (*block)(struct usefulstate*, void*, void*, void**, void**, void*);
-
-//void* datastack_[256];
-//void* returnstack_[256];
-//void* w;
-
-//size_t stacktop;
-// void* returnstack[256]; // handled by system stack
-
-//void* latest;
-//void* dict[1024];
-
-
-struct word {
-    struct word* prev;
-    unsigned int flags:16;
-    char name[10];
-
-    block codeword; // first impl block is machine word
-    void* extra[];
-};
-
-
-struct usefulstate {
-  struct word *latest;
-  void **here;
-  void **dp;
-  int (*getnexttoken)(struct usefulstate*);
-  char token[33];
-  intptr_t length;
-  void *ctx;
-  enum INTERPRETER_STATE state;
-};
-
-
-// currentcodeword: block - pointer to the codeword within a definition
-// datastack: void** - 
-// 
-
-#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop, void *next_
-
-
-#define ARGS state, esi, eax, stacktop, retstacktop, next_
-
-static __attribute__((noinline)) void next(PARAMS) {
+__attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
   eax = *(void**)esi;
   esi = ((void**)esi)+1;
@@ -76,7 +16,6 @@ static __attribute__((noinline)) void next(PARAMS) {
   __attribute__((musttail)) return eax_(ARGS);
     
 }
-#define NEXT __attribute__((musttail)) return ((block)(next_))(ARGS)
 
 
 
@@ -487,11 +426,6 @@ TODO
  */
 
 
-void display_number(PARAMS) {
-  int num = *((int*)stacktop++);
-  printf("%d\n", num);
-  NEXT;
-}
 
 void find(PARAMS) {
   struct word *word = state->latest;
@@ -608,11 +542,7 @@ struct word MUL = { .prev = &LIT, .name = "*", .codeword = mul };
 
 struct word EXIT = { .prev = &MUL, .name = "EXIT", .codeword = exit_ };
 
-struct word SQUARE = { .prev = &EXIT,  .name = "SQUARE", .codeword = docol, .extra = { &DUP.codeword, &MUL.codeword, &EXIT.codeword } };
-
-
-
-struct word COMMA = { .prev = &SQUARE, .name = ",", .codeword = comma };
+struct word COMMA = { .prev = &EXIT, .name = ",", .codeword = comma };
 
 struct word LBRAC = { .prev = &COMMA, .name = "[", .codeword = lbrac, .flags = F_IMMEDIATE };
 
@@ -623,9 +553,7 @@ struct word TERMINATE = { .prev = &RBRAC, .name = "bye", .codeword = terminate }
 struct word ADD = { .prev = &TERMINATE, .name = "+", .codeword = add };
 struct word SUB = { .prev = &ADD, .name = "-", .codeword = sub };
 
-struct word DISPLAY_NUMBER = { .prev = &SUB, .name = ".", .codeword = display_number };
-
-struct word INCR = { .prev = &DISPLAY_NUMBER, .name = "1+", .codeword = incr };
+struct word INCR = { .prev = &SUB, .name = "1+", .codeword = incr };
 struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
 
 struct word BRANCH = {.prev = &DECR, .name = "branch", .codeword = branch };
@@ -776,42 +704,6 @@ logicalop(RSPSTORE, RDROP, "rdrop", rspdrop);
 logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
 logicalop(DSPFETCH, DSPSTORE, "dsp!", dspstore);
 
+void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
 
-int scanf_token(struct usefulstate *state) {
-  int length;
-  int rv = scanf(" %32s%n", state->token, &length);
-  if ( rv < 0 ) {
-    exit(0);
-  }
-  state->token[32] = 0;
-  state->length = length;
-  return rv;  
-}
-
-
-int main(int argc, char** argv)
-{
-
-  void* datastack[256];
-  void* returnstack[256];
-  void* buffer[256] = { 0 };
-
-  void** stacktop = &datastack[255];
-  void** retstacktop = &returnstack[255];
-  void** here = &buffer[0];
-
-  struct usefulstate state;
-  state.getnexttoken = scanf_token;
-  state.here = here;
-  state.dp = buffer;
-  state.latest = &DSPSTORE;
-  state.state = IMMEDIATELY;
-  
-  //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
-  void* ip[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
-  
-  next(&state, &ip[0], 0, stacktop, retstacktop, &next);
-  
-  
-  return 0;
-}
+struct word *lastword = &DSPSTORE;
