@@ -575,6 +575,17 @@ void number(PARAMS) {
 }
 
 
+void litstring(PARAMS) {
+  
+  NEXT;
+}
+
+
+void compilestate(PARAMS) {
+  *(--stacktop) = &state->state;
+  NEXT;
+}
+
 void latest(PARAMS) {
   *(--stacktop) = &state->latest;
 
@@ -625,7 +636,9 @@ struct word NUMBER = {.prev = &WORD, .name = "number", .codeword = number };
 
 struct word HEADERCOMMA = {.prev = &WORD, .name = "header,", .codeword = headercomma };
 
-struct word LATEST = {.prev = &HEADERCOMMA, .name = "latest", .codeword = latest };
+struct word STATE = {.prev = &HEADERCOMMA, .name = "state", .codeword = compilestate };
+
+struct word LATEST = {.prev = &STATE, .name = "latest", .codeword = latest };
 
 struct word DP = {.prev = &LATEST, .name = "dp", .codeword = dp };
 
@@ -635,7 +648,9 @@ struct word TDFA = {.prev = &TCFA, .name = ">dfa", .codeword = tdfa };
 
 struct word HIDDEN = {.prev = &TDFA, .name = "hidden", .codeword = hidden };
 
-struct word COLON = {.prev = &HIDDEN, .name = ":", .codeword = docol,
+struct word IMMEDIATE_ = {.prev = &HIDDEN, .flags = F_IMMEDIATE, .name = "immediate", .codeword = immediate };
+
+struct word COLON = {.prev = &IMMEDIATE_, .name = ":", .codeword = docol,
 		     .extra = { &WORD.codeword, &HEADERCOMMA.codeword,
 			        &LIT.codeword, docol, &COMMA.codeword,
 			        &LATEST.codeword, &FETCH.codeword,
@@ -790,6 +805,7 @@ int main(int argc, char** argv)
   state.here = here;
   state.dp = buffer;
   state.latest = &DSPSTORE;
+  state.state = IMMEDIATELY;
   
   //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
   void* ip[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
