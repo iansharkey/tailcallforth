@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -117,7 +118,7 @@ void rot(PARAMS) {
   void *n2 = *stacktop++;
   void *n3 = *stacktop++;
   *(--stacktop) = n3;
-  *(--stacktop) = n2;
+  *(--stacktop) = n1;
   *(--stacktop) = n2;
   NEXT;
 }
