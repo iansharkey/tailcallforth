@@ -9,8 +9,8 @@ enum INTERPRETER_STATE {
 };
 
 enum WORD_FLAGS {
-    HIDDEN,
-    IMMEDIATE
+    F_HIDDEN = 1,
+    F_IMMEDIATE = 2
 };
 
 
@@ -38,7 +38,7 @@ typedef void (*block)(struct usefulstate*, void*, void*, void**, void**);
 struct word {
     struct word* prev;
     unsigned int flags:16;
-    char name[6];
+    char name[10];
 
     block codeword; // first impl block is machine word
     void* extra[];
@@ -49,7 +49,7 @@ struct usefulstate {
   struct word *latest;
   void **here;
   void **dp;
-  int (*getnexttoken)(struct usefulstate*, void *ctx);
+  int (*getnexttoken)(struct usefulstate*);
   char token[33];
   intptr_t length;
   void *ctx;
@@ -64,25 +64,28 @@ struct usefulstate {
 #define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop
 
 
+#define ARGS state, esi, eax, stacktop, retstacktop
+
 static __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
   eax = *(void**)esi;
   esi = ((void**)esi)+1;
   block eax_ = *(block*)eax;
 
-  __attribute__((musttail)) return eax_(state, esi, eax, stacktop, retstacktop);
+  __attribute__((musttail)) return eax_(ARGS);
     
 }
-#define NEXT __attribute__((musttail)) return next(state, esi, eax, stacktop, retstacktop)
+#define NEXT __attribute__((musttail)) return next(ARGS)
 
 
 
 
 void docol(PARAMS) {
-  //    printf("docol'ing %.6s, currentcodeword: %p\n", currentword->name, currentcodeword);
     *(--retstacktop) = esi;
     eax = ((void**)eax)+1;
+
     esi = eax;
+
     NEXT;
 }
 
@@ -109,13 +112,44 @@ void over(PARAMS) {
   NEXT;
 }
 
+void rot(PARAMS) {
+  void *n1 = *stacktop++;
+  void *n2 = *stacktop++;
+  void *n3 = *stacktop++;
+  *(--stacktop) = n3;
+  *(--stacktop) = n2;
+  *(--stacktop) = n2;
+  NEXT;
+}
+
+void nrot(PARAMS) {
+  void *n1 = *stacktop++;
+  void *n2 = *stacktop++;
+  void *n3 = *stacktop++;
+  *(--stacktop) = n2;
+  *(--stacktop) = n3;
+  *(--stacktop) = n1;
+  NEXT;
+}
+
+
 void twodrop(PARAMS) {
   stacktop += 2;
   NEXT;
 }
 
+void twodup(PARAMS) {
+  void *n1 = *stacktop;
+  void *n2 = *(stacktop+1);
+  *(--stacktop) = n1;
+  *(--stacktop) = n2;
+  
+  NEXT;
+}
 
-void dupnz(PARAMS) {
+
+
+void qdup(PARAMS) {
   void *value = *stacktop;
   if (value) {
     *(--stacktop) = value;
@@ -138,9 +172,9 @@ void drop(PARAMS) {
 
 
 void lit(PARAMS) {
-    *(--stacktop) = *(void**)esi;
-    esi = (block*)esi+1;
-    NEXT;
+  *(--stacktop) = *((void**)esi);
+  esi = (void**)esi+1;
+  NEXT;
 }
 
 void add(PARAMS) {
@@ -185,15 +219,24 @@ void decr(PARAMS) {
 }
 
 
-void peek(PARAMS) {
-  void *value = *((void**)*stacktop);
-  *(--stacktop) = value;
+void fetch(PARAMS) {
+  void **addr = (void**)(*stacktop++);
+  *(--stacktop) = *addr;
   NEXT;
 }
+
+void store(PARAMS) {
+  void **addr = (void**)( *stacktop++);
+  void *value = *stacktop++;
+  *addr = value;
+  NEXT;
+}
+
 
 void comma(PARAMS) {
   void **dp = state->dp;
   *dp++ = *stacktop++;
+  state->dp = dp;
   NEXT;
 }
 
@@ -287,21 +330,25 @@ void zgte(PARAMS) {
 
 
 void bitand(PARAMS) {
-  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) & *(intptr_t*)stacktop);
-  stacktop--;
+  intptr_t a = *((intptr_t*)(stacktop++));
+  intptr_t b = *((intptr_t*)(stacktop++));
+  *(--stacktop) = (void*)(intptr_t)(a & b);
   NEXT;
 }
 
 
 void bitor(PARAMS) {
-  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) | *(intptr_t*)stacktop);
-  stacktop--;
+  intptr_t a = *((intptr_t*)(stacktop++));
+  intptr_t b = *((intptr_t*)(stacktop++));
+  *(--stacktop) = (void*)(intptr_t)(a | b);
   NEXT;
 }
 
 void bitxor(PARAMS) {
-  *(stacktop-1) = (void*)((*((intptr_t*)stacktop-1)) ^ *((intptr_t*)stacktop));
-  stacktop--;
+  intptr_t a = *((intptr_t*)(stacktop++));
+  intptr_t b = *((intptr_t*)(stacktop++));
+  *(--stacktop) = (void*)(intptr_t)(a ^ b);
+
   NEXT;
 }
 
@@ -345,8 +392,8 @@ void rspdrop(PARAMS) {
 
 
 void dspfetch(PARAMS) {
-
-  *(--stacktop) = stacktop;
+  void *value = stacktop;
+  *(--stacktop) = value;
   NEXT;
 }
 
@@ -358,7 +405,7 @@ void dspstore(PARAMS) {
 
 void branch(PARAMS) {
   intptr_t offset = *(intptr_t*)esi;
-  esi += offset;
+  esi = ((void**)esi)+offset;
 
   NEXT;
 }
@@ -372,12 +419,30 @@ void zbranch(PARAMS) {
   }
   else
   {
-    esi += 1;
+    esi = ((void**)esi)+1;
   }
   NEXT;
 }
 
+void _dodoes(PARAMS) {
+  void *value = *(((void**)eax)+1);
 
+  if ( value ) {
+    *(--retstacktop) = esi;
+    esi = *(((void**)eax)+1);
+  }
+  else {
+    eax = ((void**)eax)+2;
+    *(--stacktop) = eax;
+  }
+  
+  NEXT;
+}
+
+void dodoes(PARAMS) {
+  *(--stacktop) = &_dodoes;
+  NEXT;
+}
 
 /*
 TODO
@@ -389,11 +454,11 @@ TODO
  builtin variables (state, here, latest, s0, base)
  return stack (>R, R>,  RSP@, RSP!, RDROP)
  input/output (word, number, emit)
- dictionary (find, >CFA, >DFA)
+ x dictionary (find, >CFA, >DFA)
  compile (:, ;, create, header_comma, dodoes, hidden, hide, tick)
  x branching (branch, 0branch)
  strings (litstring, tell)
- interpreter (quit, interpret)
+ x interpreter (quit, interpret)
  misc (execute, 
  
  
@@ -410,25 +475,38 @@ void display_number(PARAMS) {
 void find(PARAMS) {
   struct word *word = state->latest;
     
-    while (word) {
-      if (((word->flags & HIDDEN) != HIDDEN) && (memcmp(word->name, *stacktop, 6) == 0)) {
-            *stacktop = word;
-            NEXT;
-        }
-        word = word->prev;
+  while (word) {
+    if (((word->flags & F_HIDDEN) != F_HIDDEN) && (memcmp(word->name, *stacktop, 6) == 0)) {
+      *(--stacktop) = word;
+      NEXT;
     }
-    *stacktop = NULL;
-    NEXT;
+    word = word->prev;
+  }
+
+  *(--stacktop) = NULL;
+  NEXT;
 }
 
+void tcfa(PARAMS) {
+  struct word *word = (struct word*)*stacktop++;
+  *(--stacktop) = &word->codeword;
+  NEXT;
+}
+
+void tdfa(PARAMS) {
+  struct word *word = (struct word*)*stacktop++;
+  *(--stacktop) = &word->extra;
+  NEXT;
+}
 
 void headercomma(PARAMS) {
   int length = *((intptr_t*)stacktop++);
   char *name = *((char**)stacktop++);
   void **dp = state->dp;
-  
-  struct word *newword = (struct word*)*dp;
-  memcpy(newword->name, name, 6);
+
+  // add a new word 
+  struct word *newword = (struct word*)dp;
+  __builtin_memcpy(newword->name, name, 10);
   newword->prev = state->latest;
   newword->flags = 0;
 
@@ -439,13 +517,25 @@ void headercomma(PARAMS) {
 }
 
 void immediate(PARAMS) {
-  state->latest->flags ^= IMMEDIATE;
+  state->latest->flags ^= F_IMMEDIATE;
   NEXT;
+}
+
+void hidden(PARAMS) {
+  struct word *latest = state->latest;
+  latest->flags ^= F_HIDDEN;
+  NEXT;
+}
+
+
+void __attribute__((always_inline)) _word(struct usefulstate *state) {
+  state->getnexttoken(state);
 }
 
 void word(PARAMS) {
   char *name;
-  intptr_t length = state->getnexttoken(state, state->ctx);
+
+  _word(state);
 
   *(--stacktop) = state->token;
   *(--stacktop) = (void*)state->length;
@@ -456,16 +546,24 @@ void word(PARAMS) {
 
 
 void  number(PARAMS) {
-  intptr_t length = *stacktop++;
+  intptr_t length = *((intptr_t*)stacktop++);
   char *s = *stacktop++;
   long value = strtol(s, NULL, 10);
   *(--stacktop) = value;
   NEXT;
 }
 
-struct word PEEK = { .prev = NULL, .name = "PEEK",
-                     .codeword = peek };
-struct word DUP = { .prev = &PEEK, .name = "DUP",
+
+void latest(PARAMS) {
+  *(--stacktop) = &state->latest;
+
+  NEXT;
+}
+
+struct word FETCH = { .prev = NULL, .name = "@",
+                     .codeword = fetch };
+
+struct word DUP = { .prev = &FETCH, .name = "DUP",
                       .codeword =  dup };
 
 struct word FIND = {  .prev = &DUP, .name = "FIND", .codeword = find };
@@ -476,7 +574,7 @@ struct word LIT = {  .prev = &FIND, .name = "LIT", .codeword = lit };
                         
 struct word MUL = { .prev = &LIT, .name = "*", .codeword = mul };
 
-struct word EXIT = { .prev = &MUL, .name = ";", .codeword = exit_ };
+struct word EXIT = { .prev = &MUL, .name = "EXIT", .codeword = exit_ };
 
 struct word SQUARE = { .prev = &EXIT,  .name = "SQUARE", .codeword = docol, .extra = { &DUP.codeword, &MUL.codeword, &EXIT.codeword } };
 
@@ -484,31 +582,159 @@ struct word SQUARE = { .prev = &EXIT,  .name = "SQUARE", .codeword = docol, .ext
 
 struct word COMMA = { .prev = &SQUARE, .name = ",", .codeword = comma };
 
-struct word LBRAC = { .prev = &COMMA, .name = "[", .codeword = lbrac, .flags = IMMEDIATE };
+struct word LBRAC = { .prev = &COMMA, .name = "[", .codeword = lbrac, .flags = F_IMMEDIATE };
 
 struct word RBRAC = { .prev = &LBRAC, .name = "]", .codeword = rbrac };
 
-struct word QUADRUPLE = { .prev = &RBRAC, .name = "QUAD", .codeword = docol, .extra = { &SQUARE.codeword, &SQUARE.codeword, &EXIT.codeword } };
-
-
-struct word TERMINATE = { .prev = &QUADRUPLE, .name = "TERM", .codeword = terminate };
+struct word TERMINATE = { .prev = &RBRAC, .name = "bye", .codeword = terminate };
 
 struct word ADD = { .prev = &TERMINATE, .name = "+", .codeword = add };
 struct word SUB = { .prev = &ADD, .name = "-", .codeword = sub };
 
-struct word FOUR = { .prev = &SUB, .name = "FOUR", .codeword = docol, .extra = { &LIT.codeword, (void*)2, &DUP.codeword, &ADD.codeword, &EXIT.codeword } };
+struct word DISPLAY_NUMBER = { .prev = &SUB, .name = ".", .codeword = display_number };
 
-struct word DISPLAY_NUMBER = { .prev = &FOUR, .name = ".", .codeword = display_number };
 struct word INCR = { .prev = &DISPLAY_NUMBER, .name = "1+", .codeword = incr };
 struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
 
-struct word BRANCH = {.prev = &DECR, .name = "BRANCH", .codeword = branch };
+struct word BRANCH = {.prev = &DECR, .name = "branch", .codeword = branch };
 
-struct word WORD = {.prev = &BRANCH, .name = "WORD", .codeword = word };
+struct word WORD = {.prev = &BRANCH, .name = "word", .codeword = word };
 
-struct word NUMBER = {.prev = &WORD, .name = "NUMBER", .codeword = number };
+struct word NUMBER = {.prev = &WORD, .name = "number", .codeword = number };
 
-int scanf_token(struct usefulstate *state, void *ctx) {
+struct word HEADERCOMMA = {.prev = &WORD, .name = "header,", .codeword = headercomma };
+
+struct word LATEST = {.prev = &HEADERCOMMA, .name = "latest", .codeword = latest };
+
+struct word TCFA = {.prev = &LATEST, .name = ">cfa", .codeword = tcfa };
+
+struct word TDFA = {.prev = &TCFA, .name = ">dfa", .codeword = tdfa };
+
+struct word HIDDEN = {.prev = &TDFA, .name = "hidden", .codeword = hidden };
+
+struct word COLON = {.prev = &HIDDEN, .name = ":", .codeword = docol,
+		     .extra = { &WORD.codeword, &HEADERCOMMA.codeword,
+			        &LIT.codeword, docol, &COMMA.codeword,
+			        &LATEST.codeword, &FETCH.codeword,
+			        &HIDDEN.codeword,
+			        &RBRAC.codeword, &EXIT.codeword } };
+
+struct word SEMICOLON = { .prev = &COLON, .flags = F_IMMEDIATE, .name = ";", .codeword = docol,
+		     .extra = { &LIT.codeword, &EXIT.codeword, &COMMA.codeword,
+				&LATEST.codeword, &FETCH.codeword,
+				&HIDDEN.codeword,
+				&LBRAC.codeword, &EXIT.codeword } };
+
+void interpret(PARAMS) {
+  _word(state);
+
+  struct word *word = state->latest;
+  int found = 0;  
+  while (word) {
+    if ((word->flags & F_HIDDEN) != F_HIDDEN) {
+      char *hay = word->name;
+      char *needle = state->token;
+      while (*hay)
+      {
+        // if characters differ, or end of the second string is reached
+        if (*hay != *needle) {
+            break;
+        }
+	hay++; needle++;
+      }
+      int rv = (*(const unsigned char*)hay - *(const unsigned char*)needle);
+      
+      if (rv == 0) {
+	found = 1;
+	break;
+      }
+    }
+    word = word->prev;
+  }
+
+  if (!found) { // assume number
+    long v = strtol(state->token, NULL, 10);
+    if ( state->state == COMPILING ) {
+      void **dp = state->dp;
+      *dp++ = &LIT.codeword;
+      *dp++ = (void*)v;
+      state->dp = dp;
+    }
+    else {
+      *(--stacktop) = (void*)v;
+    }
+    NEXT;    
+  }
+  else {
+    if ( state->state == COMPILING && word->flags != F_IMMEDIATE ) {
+      void **dp = state->dp;
+      *dp++ = &word->codeword;
+      state->dp = dp;
+    }
+    else {
+      eax = &word->codeword;
+      __attribute__((musttail)) return word->codeword(ARGS);
+    }
+  }
+  NEXT; 
+  
+}
+
+
+struct word INTERPRET = { .prev = &SEMICOLON, .name = "interpret", .codeword = interpret };
+
+struct word DODOES = {.prev = &INTERPRET, .name = "dodoes", .codeword = dodoes };
+
+struct word OVER = {.prev = &DODOES, .name = "over", .codeword = over };
+
+struct word ROT = { .prev = &OVER, .name = "rot", .codeword = rot };
+
+struct word NROT = { .prev = &ROT, .name = "-rot", .codeword = nrot };
+
+struct word TWODROP = { .prev = &NROT, .name = "2drop", .codeword = twodrop };
+
+struct word TWODUP = { .prev = &TWODROP, .name = "2dup", .codeword = twodup };
+
+struct word QDUP = { .prev = &TWODUP, .name = "?dup", .codeword = qdup };
+
+struct word DIVMOD =  {.prev = &QDUP, .name = "/mod", .codeword = divmod };
+
+struct word STORE = {.prev = &DIVMOD, .name = "!", .codeword = store };
+
+#define logicalop(last, sname, fname, cword) \
+  struct word sname = { .prev = &last, .name = fname, .codeword = cword }
+
+logicalop(STORE, EQU, "=", equ);
+logicalop(EQU, NEQU, "<>", nequ);
+logicalop(NEQU, LT, "<", lt);
+logicalop(LT, GT, ">", gt);
+logicalop(GT, LTE, "<=", lte);
+logicalop(LTE, GTE, ">=", gte);
+logicalop(GTE, ZEQU, "0=", zequ);
+logicalop(ZEQU, ZNEQU, "0<>", znequ);
+logicalop(ZNEQU, ZLT,  "0<", zlt);
+logicalop(ZLT, ZGT, "0>", zgt);
+
+logicalop(ZGT, ZLTE, "0<=", zlte);
+logicalop(ZLTE, ZGTE, "0>=", zgte);
+
+logicalop(ZGTE, BITAND, "and", bitand);
+logicalop(BITAND, BITOR, "or", bitor);
+logicalop(BITOR, BITXOR, "xor", bitxor);
+logicalop(BITXOR, BITNOT, "invert", bitnot);
+
+logicalop(BITNOT, TOR, ">r", tor);
+logicalop(TOR, FROMR, "r>", fromr);
+
+logicalop(FROMR, RSPFETCH, "rsp@", rspfetch);
+logicalop(RSPFETCH, RSPSTORE, "rsp!", rspstore);
+logicalop(RSPSTORE, RDROP, "rdrop", rspdrop); 
+
+logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
+logicalop(DSPFETCH, DSPSTORE, "dsp!", dspstore);
+
+
+int scanf_token(struct usefulstate *state) {
   int length;
   int rv = scanf(" %32s%n", state->token, &length);
   state->token[32] = 0;
@@ -522,7 +748,7 @@ int main(int argc, char** argv)
 
   void* datastack[256];
   void* returnstack[256];
-  void* buffer[256];
+  void* buffer[256] = { 0 };
 
   void** stacktop = &datastack[255];
   void** retstacktop = &returnstack[255];
@@ -532,9 +758,10 @@ int main(int argc, char** argv)
   state.getnexttoken = scanf_token;
   state.here = here;
   state.dp = buffer;
-  state.latest = &BRANCH;
+  state.latest = &DSPSTORE;
   
-  void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
+  //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
+  void* ip[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
   
   next(&state, &ip[0], 0, stacktop, retstacktop);
   
