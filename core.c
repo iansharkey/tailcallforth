@@ -23,7 +23,7 @@ struct usefulstate;
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
-typedef void (*block)(struct usefulstate*, void*, void*, void**, void**);
+typedef void (*block)(struct usefulstate*, void*, void*, void**, void**, void*);
 
 //void* datastack_[256];
 //void* returnstack_[256];
@@ -62,10 +62,10 @@ struct usefulstate {
 // datastack: void** - 
 // 
 
-#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop
+#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop, void *next_
 
 
-#define ARGS state, esi, eax, stacktop, retstacktop
+#define ARGS state, esi, eax, stacktop, retstacktop, next_
 
 static __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
@@ -76,7 +76,7 @@ static __attribute__((noinline)) void next(PARAMS) {
   __attribute__((musttail)) return eax_(ARGS);
     
 }
-#define NEXT __attribute__((musttail)) return next(ARGS)
+#define NEXT __attribute__((musttail)) return ((block)(next_))(ARGS)
 
 
 
@@ -794,7 +794,7 @@ int main(int argc, char** argv)
   //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
   void* ip[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
   
-  next(&state, &ip[0], 0, stacktop, retstacktop);
+  next(&state, &ip[0], 0, stacktop, retstacktop, &next);
   
   
   return 0;
