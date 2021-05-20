@@ -232,6 +232,21 @@ void store(PARAMS) {
   NEXT;
 }
 
+void addstore(PARAMS) {
+  intptr_t *addr = (intptr_t*)( *stacktop++);
+  intptr_t value = (intptr_t)(*stacktop++);
+
+  *addr += value;
+  NEXT;
+}
+
+void substore(PARAMS) {
+  intptr_t *addr = (intptr_t*)( *stacktop++);
+  intptr_t value = (intptr_t)(*stacktop++);
+
+  *addr -= value;
+  NEXT;
+}
 
 void comma(PARAMS) {
   void **dp = state->dp;
@@ -444,6 +459,11 @@ void dodoes(PARAMS) {
   NEXT;
 }
 
+void dp(PARAMS) {
+  *(--stacktop) = &state->dp;
+  NEXT;
+}
+
 /*
 TODO
  x sub, divmod, incr, decr
@@ -545,7 +565,7 @@ void word(PARAMS) {
 
 
 
-void  number(PARAMS) {
+void number(PARAMS) {
   intptr_t length = *((intptr_t*)stacktop++);
   char *s = *stacktop++;
   long value = strtol(s, NULL, 10);
@@ -606,7 +626,9 @@ struct word HEADERCOMMA = {.prev = &WORD, .name = "header,", .codeword = headerc
 
 struct word LATEST = {.prev = &HEADERCOMMA, .name = "latest", .codeword = latest };
 
-struct word TCFA = {.prev = &LATEST, .name = ">cfa", .codeword = tcfa };
+struct word DP = {.prev = &LATEST, .name = "dp", .codeword = dp };
+
+struct word TCFA = {.prev = &DP, .name = ">cfa", .codeword = tcfa };
 
 struct word TDFA = {.prev = &TCFA, .name = ">dfa", .codeword = tdfa };
 
@@ -701,10 +723,15 @@ struct word DIVMOD =  {.prev = &QDUP, .name = "/mod", .codeword = divmod };
 
 struct word STORE = {.prev = &DIVMOD, .name = "!", .codeword = store };
 
+struct word ADDSTORE = {.prev = &STORE, .name = "+!", .codeword = addstore };
+
+struct word SUBSTORE = {.prev = &ADDSTORE, .name = "-!", .codeword = substore };
+
+
 #define logicalop(last, sname, fname, cword) \
   struct word sname = { .prev = &last, .name = fname, .codeword = cword }
 
-logicalop(STORE, EQU, "=", equ);
+logicalop(SUBSTORE, EQU, "=", equ);
 logicalop(EQU, NEQU, "<>", nequ);
 logicalop(NEQU, LT, "<", lt);
 logicalop(LT, GT, ">", gt);
@@ -737,6 +764,9 @@ logicalop(DSPFETCH, DSPSTORE, "dsp!", dspstore);
 int scanf_token(struct usefulstate *state) {
   int length;
   int rv = scanf(" %32s%n", state->token, &length);
+  if ( rv < 0 ) {
+    exit(0);
+  }
   state->token[32] = 0;
   state->length = length;
   return rv;  
