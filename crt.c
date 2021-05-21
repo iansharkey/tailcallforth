@@ -9,7 +9,7 @@ int scanf_token(struct usefulstate *state) {
   int length;
   int rv = scanf(" %32s%n", state->token, &length);
   if ( rv < 0 ) {
-    exit(0);
+    return rv;
   }
   state->token[32] = 0;
   state->length = length;
