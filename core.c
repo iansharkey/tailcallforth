@@ -98,7 +98,7 @@ void qdup(PARAMS) {
   NEXT;
 }
 
-void dup(PARAMS) {
+static void dup(PARAMS) {
   void *value = *stacktop;
   *(--stacktop) = value;
   NEXT;
@@ -483,8 +483,8 @@ void hidden(PARAMS) {
 }
 
 
-void __attribute__((always_inline)) _word(struct usefulstate *state) {
-  state->getnexttoken(state);
+int __attribute__((always_inline)) _word(struct usefulstate *state) {
+  return state->getnexttoken(state);
 }
 
 void word(PARAMS) {
@@ -532,7 +532,7 @@ struct word FETCH = { .prev = NULL, .name = "@",
 struct word DUP = { .prev = &FETCH, .name = "DUP",
                       .codeword =  dup };
 
-struct word FIND = {  .prev = &DUP, .name = "FIND", .codeword = find };
+static struct word FIND = {  .prev = &DUP, .name = "FIND", .codeword = find };
 
 struct word LIT = {  .prev = &FIND, .name = "LIT", .codeword = lit };
 
@@ -592,7 +592,10 @@ struct word SEMICOLON = { .prev = &COLON, .flags = F_IMMEDIATE, .name = ";", .co
 				&LBRAC.codeword, &EXIT.codeword } };
 
 void interpret(PARAMS) {
-  _word(state);
+  int rv = _word(state);
+  if (rv < 0) {
+    return;
+  }
 
   struct word *word = state->latest;
   int found = 0;  
