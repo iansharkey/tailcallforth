@@ -49,11 +49,14 @@ struct word {
 };
 
 
+#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop, void *next_
+
+
 struct usefulstate {
   struct word *latest;
   void **here;
   void **dp;
-  int (*getnexttoken)(struct usefulstate*);
+  int (*getnexttoken)(PARAMS);
   char token[33];
   intptr_t length;
   void *ctx;
@@ -61,7 +64,6 @@ struct usefulstate {
 };
 
 
-#define PARAMS struct usefulstate *state, void* esi, void* eax, void** stacktop, void** retstacktop, void *next_
 
 
 #define ARGS state, esi, eax, stacktop, retstacktop, next_

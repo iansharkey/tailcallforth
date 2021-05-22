@@ -125,9 +125,9 @@ void add(PARAMS) {
 }
 
 void sub(PARAMS) {
-  intptr_t a = *((intptr_t*)stacktop++);
-  intptr_t b = *((intptr_t*)stacktop++);
-  *(--stacktop) = (void*)(a-b);
+  intptr_t n2 = *((intptr_t*)stacktop++);
+  intptr_t n1 = *((intptr_t*)stacktop++);
+  *(--stacktop) = (void*)(n1-n2);
   NEXT;
 }
 
@@ -315,7 +315,7 @@ void bitnot(PARAMS) {
 
 
 
-void tor(PARAMS) {
+void fromr(PARAMS) {
 
   *(--stacktop) = *retstacktop;
   retstacktop++;
@@ -323,7 +323,7 @@ void tor(PARAMS) {
 }
 
 
-void fromr(PARAMS) {
+void tor(PARAMS) {
   *(--retstacktop) = *stacktop++;
 
   NEXT;
@@ -384,12 +384,12 @@ void _dodoes(PARAMS) {
 
   if ( value ) {
     *(--retstacktop) = esi;
-    esi = *(((void**)eax)+1);
+    esi = value;
   }
-  else {
-    eax = ((void**)eax)+2;
-    *(--stacktop) = eax;
-  }
+
+  eax = ((void**)eax)+2;
+  *(--stacktop) = eax;
+
   
   NEXT;
 }
@@ -483,14 +483,14 @@ void hidden(PARAMS) {
 }
 
 
-int __attribute__((always_inline)) _word(struct usefulstate *state) {
-  return state->getnexttoken(state);
+int __attribute__((always_inline)) _word(PARAMS) {
+  return state->getnexttoken(ARGS);
 }
 
 void word(PARAMS) {
   char *name;
 
-  _word(state);
+  _word(ARGS);
 
   *(--stacktop) = state->token;
   *(--stacktop) = (void*)state->length;
@@ -592,7 +592,7 @@ struct word SEMICOLON = { .prev = &COLON, .flags = F_IMMEDIATE, .name = ";", .co
 				&LBRAC.codeword, &EXIT.codeword } };
 
 void interpret(PARAMS) {
-  int rv = _word(state);
+  int rv = _word(ARGS);
   if (rv < 0) {
     return;
   }
