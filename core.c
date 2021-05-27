@@ -6,6 +6,13 @@
 
 #include "core.h"
 
+// in the usual case (docol word A consisting of a list of words references b,c,d,...)
+//  esi points to the next word references in word A
+//  eax points to the current executing word reference's code field 
+
+// in the case of an executing primitive word
+//  esi points to the next word to execute after finishing the primitive
+//  eax points to the currently executing word's code field
 
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
@@ -16,8 +23,6 @@ __attribute__((noinline)) void next(PARAMS) {
   __attribute__((musttail)) return eax_(ARGS);
     
 }
-
-
 
 
 void docol(PARAMS) {
@@ -345,6 +350,20 @@ void rspdrop(PARAMS) {
   NEXT;
 }
 
+struct litstring {
+ intptr_t length;
+ char str[];
+};
+
+
+void litstring(PARAMS) {
+  // get current
+  struct litstring *str = (struct litstring*)((void**)eax+1);
+  *(--stacktop) = str->length;
+  *(--stacktop) = &str->str;
+  
+  NEXT;
+}
 
 void dspfetch(PARAMS) {
   void *value = stacktop;
@@ -509,10 +528,6 @@ void number(PARAMS) {
 }
 
 
-void litstring(PARAMS) {
-  
-  NEXT;
-}
 
 
 void compilestate(PARAMS) {
@@ -673,7 +688,6 @@ struct word STORE = {.prev = &DIVMOD, .name = "!", .codeword = store };
 struct word ADDSTORE = {.prev = &STORE, .name = "+!", .codeword = addstore };
 
 struct word SUBSTORE = {.prev = &ADDSTORE, .name = "-!", .codeword = substore };
-
 
 #define logicalop(last, sname, fname, cword) \
   struct word sname = { .prev = &last, .name = fname, .codeword = cword }
