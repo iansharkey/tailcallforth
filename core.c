@@ -522,6 +522,13 @@ void fetchbyte(PARAMS) {
   NEXT;
 }
 
+void storebyte(PARAMS) {
+  char **addr = (char**)(*stacktop++);
+  intptr_t c = (intptr_t)(*stacktop++);
+  *addr = c;
+  NEXT;
+}
+
 int __attribute__((always_inline)) _word(PARAMS) {
   return state->getnexttoken(ARGS);
 }
@@ -774,10 +781,12 @@ struct word CMOVE = {.prev = &EXECUTE, .name = "cmove", .codeword = cmove };
 
 struct word FETCHBYTE = {.prev = &CMOVE, .name = "c@", .codeword = fetchbyte };
 
+struct word STOREBYTE = {.prev = &FETCHBYTE, .name = "c!", .codeword = storebyte };
+
 #define logicalop(last, sname, fname, cword) \
   struct word sname = { .prev = &last, .name = fname, .codeword = cword }
 
-logicalop(FETCHBYTE, EQU, "=", equ);
+logicalop(STOREBYTE, EQU, "=", equ);
 logicalop(EQU, NEQU, "<>", nequ);
 logicalop(NEQU, LT, "<", lt);
 logicalop(LT, GT, ">", gt);
