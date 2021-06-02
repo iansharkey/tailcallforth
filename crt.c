@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <dlfcn.h>
+#include <string.h>
 
 #include "core.h"
 
@@ -23,6 +24,12 @@ void display_number(PARAMS) {
   NEXT;
 }
 
+void emit(PARAMS) {
+  char c = (char*)(*stacktop++);
+  putchar(c);
+  NEXT;
+}
+
 void *libc_handle;
 
 void libc_dlsym(PARAMS) {
@@ -31,7 +38,7 @@ void libc_dlsym(PARAMS) {
   NEXT;
 }
 
-
+extern void litstring(PARAMS);
 int main(int argc, char** argv)
 {
 
@@ -46,12 +53,25 @@ int main(int argc, char** argv)
   libc_handle = dlopen("libc.dylib", RTLD_LAZY);
 
   struct word DISPLAY_NUMBER = { .prev = lastword, .name = ".", .codeword = display_number };
+
+  struct word EMIT = { .prev = &DISPLAY_NUMBER, .name = "emit", .codeword = emit };
+
+  
+  struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
+
+  BLAH->prev = &EMIT;
+  strcpy(&BLAH->name,"blah");
+  BLAH->codeword = litstring;
+  BLAH->extra[0] = (void*)5;
+  
+  strcpy(&(BLAH->extra[1]), "yeah");
   
   struct usefulstate state;
   state.getnexttoken = scanf_token;
   state.here = here;
   state.dp = buffer;
-  state.latest = &DISPLAY_NUMBER;
+  //  state.latest = &DISPLAY_NUMBER;
+  state.latest = BLAH;
   state.state = IMMEDIATELY;
   
   //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };

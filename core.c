@@ -446,6 +446,13 @@ TODO
 
 
 
+void bracket_tick(PARAMS) {
+  eax = *(void**)esi;
+  esi = ((void**)esi)+1;
+  *(--stacktop) = eax;
+  NEXT;
+}
+
 void find(PARAMS) {
   struct word *word = state->latest;
     
@@ -501,6 +508,19 @@ void hidden(PARAMS) {
   NEXT;
 }
 
+void cmove(PARAMS) {
+  intptr_t length = (intptr_t)(*stacktop++);
+  void *dest = *stacktop++;
+  void *src = *stacktop++;
+  __builtin_memcpy(dest, src, length);
+  NEXT;
+}
+
+void fetchbyte(PARAMS) {
+  void **addr = (void**)*stacktop++;
+  *(--stacktop) = *addr;
+  NEXT;
+}
 
 int __attribute__((always_inline)) _word(PARAMS) {
   return state->getnexttoken(ARGS);
@@ -541,6 +561,54 @@ void latest(PARAMS) {
   NEXT;
 }
 
+void paren_do(PARAMS) {
+  void *a = *stacktop++;
+  void *b = *stacktop++;
+  *(--retstacktop) = b;
+  *(--retstacktop) = a;
+  NEXT;
+}
+
+void paren_loop(PARAMS) {
+  intptr_t limit = (intptr_t)(*retstacktop++);
+  intptr_t index = (intptr_t)(*retstacktop++);
+  index++;
+  if (index != limit) {
+    esi = ((void**)esi) + *((intptr_t*)esi);
+    *(--retstacktop) = index;
+    *(--retstacktop) = limit;
+  }
+  else {
+    esi = ((void**)esi)+1;
+  }
+  
+  NEXT;
+}
+
+void unloop(PARAMS) {
+  retstacktop++;
+  retstacktop++;
+  NEXT;  
+}
+
+void inner_index(PARAMS) {
+  *(--stacktop) = *retstacktop;
+  NEXT;
+}
+
+void outer_index(PARAMS) {
+  *(--stacktop) = *((void**)retstacktop+1);
+  NEXT;
+}
+
+void execute(PARAMS) {
+  block xt = *stacktop++;
+  __attribute__((musttail)) return xt(ARGS);
+
+  NEXT;
+}
+
+
 struct word FETCH = { .prev = NULL, .name = "@",
                      .codeword = fetch };
 
@@ -579,9 +647,20 @@ struct word NUMBER = {.prev = &WORD, .name = "number", .codeword = number };
 
 struct word HEADERCOMMA = {.prev = &WORD, .name = "header,", .codeword = headercomma };
 
-struct word STATE = {.prev = &HEADERCOMMA, .name = "state", .codeword = compilestate };
+struct word BRACKET_TICK = {.prev = &HEADERCOMMA, .name = "[']", .codeword = bracket_tick };
 
-struct word LATEST = {.prev = &STATE, .name = "latest", .codeword = latest };
+struct word STATE = {.prev = &BRACKET_TICK, .name = "state", .codeword = compilestate };
+
+struct word PAREN_DO = {.prev = &STATE, .name = "(DO)", .codeword = paren_do };
+
+struct word PAREN_LOOP = {.prev = &PAREN_DO, .name = "(LOOP)", .codeword = paren_loop };
+
+struct word INNER_INDEX = {.prev = &PAREN_LOOP, .name = "i", .codeword = inner_index };
+
+struct word OUTER_INDEX = {.prev = &INNER_INDEX, .name = "j", .codeword = outer_index };
+
+
+struct word LATEST = {.prev = &OUTER_INDEX, .name = "latest", .codeword = latest };
 
 struct word DP = {.prev = &LATEST, .name = "dp", .codeword = dp };
 
@@ -689,10 +768,16 @@ struct word ADDSTORE = {.prev = &STORE, .name = "+!", .codeword = addstore };
 
 struct word SUBSTORE = {.prev = &ADDSTORE, .name = "-!", .codeword = substore };
 
+struct word EXECUTE = {.prev = &SUBSTORE, .name = "execute", .codeword = execute };
+
+struct word CMOVE = {.prev = &EXECUTE, .name = "cmove", .codeword = cmove };
+
+struct word FETCHBYTE = {.prev = &CMOVE, .name = "c@", .codeword = fetchbyte };
+
 #define logicalop(last, sname, fname, cword) \
   struct word sname = { .prev = &last, .name = fname, .codeword = cword }
 
-logicalop(SUBSTORE, EQU, "=", equ);
+logicalop(FETCHBYTE, EQU, "=", equ);
 logicalop(EQU, NEQU, "<>", nequ);
 logicalop(NEQU, LT, "<", lt);
 logicalop(LT, GT, ">", gt);
