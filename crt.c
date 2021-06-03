@@ -19,13 +19,13 @@ int scanf_token(struct usefulstate *state) {
 
 
 void display_number(PARAMS) {
-  int num = *((int*)stacktop++);
-  printf("%d\n", num);
+  void *num = *stacktop++;
+  printf("%p\n", num);
   NEXT;
 }
 
 void emit(PARAMS) {
-  char c = (char*)(*stacktop++);
+  char c = (char)(*stacktop++);
   putchar(c);
   NEXT;
 }
