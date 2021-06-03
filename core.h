@@ -61,6 +61,7 @@ struct usefulstate {
   intptr_t length;
   void *ctx;
   enum INTERPRETER_STATE state;
+  int base;
 };
 
 

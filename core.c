@@ -64,9 +64,9 @@ void over(PARAMS) {
 }
 
 void rot(PARAMS) {
-  void *n1 = *stacktop++;
-  void *n2 = *stacktop++;
   void *n3 = *stacktop++;
+  void *n2 = *stacktop++;
+  void *n1 = *stacktop++;
   *(--stacktop) = n3;
   *(--stacktop) = n1;
   *(--stacktop) = n2;
@@ -74,9 +74,9 @@ void rot(PARAMS) {
 }
 
 void nrot(PARAMS) {
-  void *n1 = *stacktop++;
-  void *n2 = *stacktop++;
   void *n3 = *stacktop++;
+  void *n2 = *stacktop++;
+  void *n1 = *stacktop++;
   *(--stacktop) = n2;
   *(--stacktop) = n3;
   *(--stacktop) = n1;
@@ -785,7 +785,9 @@ struct word ROT = { .prev = &SWAP, .name = "rot", .codeword = rot };
 
 struct word NROT = { .prev = &ROT, .name = "-rot", .codeword = nrot };
 
-struct word TWODROP = { .prev = &NROT, .name = "2drop", .codeword = twodrop };
+struct word DROP = { .prev = &NROT, .name = "drop", .codeword = drop };
+
+struct word TWODROP = { .prev = &DROP, .name = "2drop", .codeword = twodrop };
 
 struct word TWODUP = { .prev = &TWODROP, .name = "2dup", .codeword = twodup };
 
