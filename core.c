@@ -627,8 +627,9 @@ void outer_index(PARAMS) {
 }
 
 void execute(PARAMS) {
-  block xt = *stacktop++;
-  __attribute__((musttail)) return xt(ARGS);
+  eax = (block*)(*stacktop++);
+  block eax_ = *(block*)eax;
+  __attribute__((musttail)) return eax_(ARGS);
 
   NEXT;
 }
@@ -640,9 +641,9 @@ struct word FETCH = { .prev = NULL, .name = "@",
 struct word DUP = { .prev = &FETCH, .name = "dup",
                       .codeword =  dup };
 
-static struct word FIND = {  .prev = &DUP, .name = "FIND", .codeword = find };
+static struct word FIND = {  .prev = &DUP, .name = "(find)", .codeword = find };
 
-struct word LIT = {  .prev = &FIND, .name = "LIT", .codeword = lit };
+struct word LIT = {  .prev = &FIND, .name = "lit", .codeword = lit };
 
 
                         
@@ -680,9 +681,9 @@ struct word BRACKET_TICK = {.prev = &HEADERCOMMA, .name = "[']", .codeword = bra
 
 struct word STATE = {.prev = &BRACKET_TICK, .name = "state", .codeword = compilestate };
 
-struct word PAREN_DO = {.prev = &STATE, .name = "(DO)", .codeword = paren_do };
+struct word PAREN_DO = {.prev = &STATE, .name = "(do)", .codeword = paren_do };
 
-struct word PAREN_LOOP = {.prev = &PAREN_DO, .name = "(LOOP)", .codeword = paren_loop };
+struct word PAREN_LOOP = {.prev = &PAREN_DO, .name = "(loop)", .codeword = paren_loop };
 
 struct word INNER_INDEX = {.prev = &PAREN_LOOP, .name = "i", .codeword = inner_index };
 
