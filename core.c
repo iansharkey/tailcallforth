@@ -14,8 +14,13 @@
 //  esi points to the next word to execute after finishing the primitive
 //  eax points to the currently executing word's code field
 
+struct word *getword(void **esi) {
+  return container_of(esi, struct word, codeword);
+}
+
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
+  //struct word *currentword = getword(esi);
   eax = *(void**)esi;
   esi = ((void**)esi)+1;
   block eax_ = *(block*)eax;
@@ -23,6 +28,7 @@ __attribute__((noinline)) void next(PARAMS) {
   __attribute__((musttail)) return eax_(ARGS);
     
 }
+
 
 
 void docol(PARAMS) {
@@ -379,14 +385,14 @@ void dspstore(PARAMS) {
 
 void branch(PARAMS) {
   intptr_t offset = *(intptr_t*)esi;
-  esi = ((void**)esi)+offset;
+  esi += offset;
 
   NEXT;
 }
 
 void zbranch(PARAMS) {
   void* value = *stacktop++;
-  if (value)
+  if (!value)
   {
      intptr_t offset = *(intptr_t*)esi;
      esi += offset;
@@ -510,22 +516,34 @@ void hidden(PARAMS) {
 
 void cmove(PARAMS) {
   intptr_t length = (intptr_t)(*stacktop++);
-  void *dest = *stacktop++;
-  void *src = *stacktop++;
-  __builtin_memcpy(dest, src, length);
+  char *dest = (char*)(*stacktop++);
+  char *src =  (char*)(*stacktop++);
+
+  while(length--)
+    *dest++ = src++;
+    
   NEXT;
 }
 
 void fetchbyte(PARAMS) {
-  void **addr = (void**)*stacktop++;
-  *(--stacktop) = *addr;
+  char *addr = (void**)*stacktop++;
+  *(--stacktop) = (void*)(*addr);
   NEXT;
 }
 
 void storebyte(PARAMS) {
-  char **addr = (char**)(*stacktop++);
+  char *addr = (char*)(*stacktop++);
   intptr_t c = (intptr_t)(*stacktop++);
   *addr = c;
+  NEXT;
+}
+
+void copybyte(PARAMS) {
+  char *dest = (char*)(*stacktop++);
+  char *src = (char*)(*stacktop++);
+  *dest = *src;
+  *(--stacktop) = src++;
+  *(--stacktop) = dest++;
   NEXT;
 }
 
@@ -619,7 +637,7 @@ void execute(PARAMS) {
 struct word FETCH = { .prev = NULL, .name = "@",
                      .codeword = fetch };
 
-struct word DUP = { .prev = &FETCH, .name = "DUP",
+struct word DUP = { .prev = &FETCH, .name = "dup",
                       .codeword =  dup };
 
 static struct word FIND = {  .prev = &DUP, .name = "FIND", .codeword = find };
@@ -648,7 +666,11 @@ struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
 
 struct word BRANCH = {.prev = &DECR, .name = "branch", .codeword = branch };
 
-struct word WORD = {.prev = &BRANCH, .name = "word", .codeword = word };
+
+
+struct word ZBRANCH = {.prev = &BRANCH, .name = "0branch", .codeword = zbranch };
+
+struct word WORD = {.prev = &ZBRANCH, .name = "word", .codeword = word };
 
 struct word NUMBER = {.prev = &WORD, .name = "number", .codeword = number };
 
@@ -736,7 +758,7 @@ void interpret(PARAMS) {
     NEXT;    
   }
   else {
-    if ( state->state == COMPILING && word->flags != F_IMMEDIATE ) {
+    if ( (state->state == COMPILING) && (word->flags & F_IMMEDIATE) != F_IMMEDIATE ) {
       void **dp = state->dp;
       *dp++ = &word->codeword;
       state->dp = dp;
@@ -757,7 +779,9 @@ struct word DODOES = {.prev = &INTERPRET, .name = "dodoes", .codeword = dodoes }
 
 struct word OVER = {.prev = &DODOES, .name = "over", .codeword = over };
 
-struct word ROT = { .prev = &OVER, .name = "rot", .codeword = rot };
+struct word SWAP = {.prev = &OVER, .name = "swap", .codeword = swap };
+
+struct word ROT = { .prev = &SWAP, .name = "rot", .codeword = rot };
 
 struct word NROT = { .prev = &ROT, .name = "-rot", .codeword = nrot };
 
@@ -815,6 +839,6 @@ logicalop(RSPSTORE, RDROP, "rdrop", rspdrop);
 logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
 logicalop(DSPFETCH, DSPSTORE, "dsp!", dspstore);
 
-void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)-2, &TERMINATE.codeword };
+void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)(-2*sizeof(void*)), &TERMINATE.codeword };
 
 struct word *lastword = &DSPSTORE;
