@@ -54,6 +54,7 @@ struct word {
 
 struct usefulstate {
   struct word *latest;
+  void **stackbase;
   void **here;
   void **dp;
   int (*getnexttoken)(struct usefulstate *);

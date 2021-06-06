@@ -146,13 +146,21 @@ void mul(PARAMS) {
 }
 
 
-void divmod(PARAMS) {
+void _div(PARAMS) {
   intptr_t numerator = *(intptr_t*)stacktop++;
   intptr_t denominator = *(intptr_t*)stacktop++;
   *(--stacktop) = (void*)(numerator / denominator);
+  NEXT;
+}
+
+
+void mod(PARAMS) {
+  intptr_t numerator = *(intptr_t*)stacktop++;
+  intptr_t denominator = *(intptr_t*)stacktop++;
   *(--stacktop) = (void*)(numerator % denominator);
   NEXT;
 }
+
 
 void incr(PARAMS) {
   *(intptr_t*)stacktop += 1;
@@ -456,9 +464,12 @@ void bracket_tick(PARAMS) {
 
 void find(PARAMS) {
   struct word *word = state->latest;
+
+  intptr_t length = *stacktop++;
+  char *s = *stacktop++;
     
   while (word) {
-    if (((word->flags & F_HIDDEN) != F_HIDDEN) && (memcmp(word->name, *stacktop, 6) == 0)) {
+    if (((word->flags & F_HIDDEN) != F_HIDDEN) && (__builtin_strncmp(word->name, s, 15) == 0)) {
       *(--stacktop) = word;
       NEXT;
     }
@@ -526,6 +537,23 @@ void immediate(PARAMS) {
   NEXT;
 }
 
+
+void cells(PARAMS) {
+  *(--stacktop) = sizeof(void*);
+  NEXT;
+}
+
+void docol_addr(PARAMS) {
+  *(--stacktop) = (void*)docol;
+  NEXT;
+}
+
+void stackbase(PARAMS) {
+  *(--stacktop) = state->stackbase;
+  NEXT;
+}
+
+
 void hidden(PARAMS) {
   struct word *latest = state->latest;
   latest->flags ^= F_HIDDEN;
@@ -539,6 +567,7 @@ void cmove(PARAMS) {
 
   while(length--)
     *dest++ = *src++;
+
     
   NEXT;
 }
@@ -574,7 +603,10 @@ int _word(PARAMS) {
 
   
   do {
-    rv = getkey(state, &c);;
+    rv = getkey(state, &c);
+    if (rv < 0) {
+      return rv;
+    }
 
     if (!comment) {
       if (c == '\\') {
@@ -850,9 +882,11 @@ struct word TWODUP = { .prev = &TWODROP, .name = "2dup", .codeword = twodup };
 
 struct word QDUP = { .prev = &TWODUP, .name = "?dup", .codeword = qdup };
 
-struct word DIVMOD =  {.prev = &QDUP, .name = "/mod", .codeword = divmod };
+struct word DIV = {.prev = &QDUP, .name = "/", .codeword = _div };
 
-struct word STORE = {.prev = &DIVMOD, .name = "!", .codeword = store };
+struct word MOD = {.prev = &DIV, .name = "%", .codeword = mod };
+
+struct word STORE = {.prev = &MOD, .name = "!", .codeword = store };
 
 struct word ADDSTORE = {.prev = &STORE, .name = "+!", .codeword = addstore };
 
@@ -896,7 +930,11 @@ logicalop(RSPFETCH, RSPSTORE, "rsp!", rspstore);
 logicalop(RSPSTORE, RDROP, "rdrop", rspdrop); 
 
 logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
-logicalop(DSPFETCH, DSPSTORE, "dsp!", dspstore);
+logicalop(DSPFETCH, CELLS, "cells", cells);
+logicalop(CELLS, DOCOL_ADDR, "docol", docol_addr);
+logicalop(DOCOL_ADDR, STACKBASE, "s0", stackbase);
+logicalop(STACKBASE, DSPSTORE, "dsp!", dspstore);
+
 
 void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)(-2*sizeof(void*)), &TERMINATE.codeword };
 

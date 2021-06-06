@@ -76,6 +76,7 @@ int main(int argc, char** argv)
   state.getnexttoken = getline_line;
   state.here = here;
   state.dp = buffer;
+  state.stackbase = stacktop;
   //  state.latest = &DISPLAY_NUMBER;
   state.latest = BLAH;
   state.state = IMMEDIATELY;
