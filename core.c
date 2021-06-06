@@ -586,7 +586,7 @@ int _word(PARAMS) {
 	continue;
       }
 
-      if (c != ' ' || c != '\t' || c != '\r' || c != '\n') {
+      if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
 	break;
       }
     }
@@ -603,6 +603,7 @@ int _word(PARAMS) {
     state->token[i++] = c;
     rv = getkey(state, &c);
   }
+  state->token[i] = '\0';
 
   state->tokenlen = i;
 
@@ -730,9 +731,11 @@ struct word ZBRANCH = {.prev = &BRANCH, .name = "0branch", .codeword = zbranch }
 
 struct word WORD = {.prev = &ZBRANCH, .name = "word", .codeword = word };
 
-struct word NUMBER = {.prev = &WORD, .name = "number", .codeword = number };
+struct word KEY = {.prev= &WORD, .name = "key", .codeword = key };
 
-struct word HEADERCOMMA = {.prev = &WORD, .name = "header,", .codeword = headercomma };
+struct word NUMBER = {.prev = &KEY, .name = "number", .codeword = number };
+
+struct word HEADERCOMMA = {.prev = &NUMBER, .name = "header,", .codeword = headercomma };
 
 struct word BRACKET_TICK = {.prev = &HEADERCOMMA, .name = "[']", .codeword = bracket_tick };
 
