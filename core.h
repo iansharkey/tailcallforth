@@ -56,8 +56,11 @@ struct usefulstate {
   struct word *latest;
   void **here;
   void **dp;
-  int (*getnexttoken)(PARAMS);
-  char token[33];
+  int (*getnexttoken)(struct usefulstate *);
+  char token[32];
+  int tokenlen;
+  char *line;
+  size_t pos;
   intptr_t length;
   void *ctx;
   enum INTERPRETER_STATE state;

@@ -6,16 +6,22 @@
 
 #include "core.h"
 
-int scanf_token(struct usefulstate *state) {
-  int length;
-  int rv = scanf(" %32s%n", state->token, &length);
-  if ( rv < 0 ) {
-    return rv;
-  }
-  state->token[32] = 0;
-  state->length = length;
-  return rv;  
+
+
+
+
+int getline_line(struct usefulstate *state) {
+  char *buf = NULL;
+  int length = 0;
+  state->length = getline(&buf, &length, stdin);
+
+  state->line = buf;
+  state->pos = 0;
+  
+  return state->length;  
 }
+
+
 
 
 void display_number(PARAMS) {
@@ -66,8 +72,8 @@ int main(int argc, char** argv)
   
   strcpy(&(BLAH->extra[1]), "yeah");
   
-  struct usefulstate state;
-  state.getnexttoken = scanf_token;
+  struct usefulstate state = { 0 };
+  state.getnexttoken = getline_line;
   state.here = here;
   state.dp = buffer;
   //  state.latest = &DISPLAY_NUMBER;

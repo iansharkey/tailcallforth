@@ -474,6 +474,16 @@ void find(PARAMS) {
   NEXT;
 }
 
+
+void key(PARAMS) {
+  char c;
+  int rv = getkey(state, &c);
+  *(--stacktop) = c;
+  NEXT;
+}
+
+
+
 void tcfa(PARAMS) {
   struct word *word = (struct word*)*stacktop++;
   *(--stacktop) = &word->codeword;
@@ -547,17 +557,64 @@ void copybyte(PARAMS) {
   NEXT;
 }
 
-int __attribute__((always_inline)) _word(PARAMS) {
-  return state->getnexttoken(ARGS);
+
+int getkey(struct usefulstate *state, char *c) {
+  if (state->pos == state->length) {
+    int rv = state->getnexttoken(state);
+    if (rv < 0) {
+      return rv;
+    }
+  }
+
+  *c = state->line[state->pos++];
+  return 1;
 }
 
+int _word(PARAMS) {
+  int comment = 0;
+  int i = 0;
+  int rv;
+  char c;
+
+  
+  do {
+    rv = getkey(state, &c);;
+
+    if (!comment) {
+      if (c == '\\') {
+	comment = 1;
+	continue;
+      }
+
+      if (c != ' ' || c != '\t' || c != '\r' || c != '\n') {
+	break;
+      }
+    }
+    else {
+      if ( c == '\r' || c == '\n') {
+	comment = 0;
+      }
+    }
+  } while (rv >= 0);
+
+  // skip comments
+
+  while (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+    state->token[i++] = c;
+    rv = getkey(state, &c);
+  }
+
+  state->tokenlen = i;
+
+  return rv;
+}
+
+
 void word(PARAMS) {
-  char *name;
-
-  _word(ARGS);
-
+  int rv = _word(ARGS);
+  
   *(--stacktop) = state->token;
-  *(--stacktop) = (void*)state->length;
+  *(--stacktop) = state->tokenlen;
   
   NEXT;
 }
