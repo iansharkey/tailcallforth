@@ -14,13 +14,8 @@
 //  esi points to the next word to execute after finishing the primitive
 //  eax points to the currently executing word's code field
 
-struct word *getword(void **esi) {
-  return container_of(esi, struct word, codeword);
-}
-
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
-  //struct word *currentword = getword(esi);
   eax = *(void**)esi;
   esi = ((void**)esi)+1;
   block eax_ = *(block*)eax;
@@ -92,8 +87,8 @@ void twodrop(PARAMS) {
 void twodup(PARAMS) {
   void *n1 = *stacktop;
   void *n2 = *(stacktop+1);
-  *(--stacktop) = n1;
   *(--stacktop) = n2;
+  *(--stacktop) = n1;
   
   NEXT;
 }
@@ -231,32 +226,32 @@ void equ(PARAMS) {
 
 
 void nequ(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) != *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) != *(intptr_t*)stacktop);
   stacktop--;
   NEXT;
 }
 
 void lt(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) < *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) < *(intptr_t*)stacktop);
   stacktop--;
   NEXT;
 }
 
 void gt(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) > *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) > *(intptr_t*)stacktop);
   stacktop--;
   NEXT;
 }
 
 
 void lte(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) <= *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) <= *(intptr_t*)stacktop);
   stacktop--;
   NEXT;
 }
 
 void gte(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1)) >= *(intptr_t*)stacktop;
+  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) >= *((intptr_t*)stacktop));
   stacktop--;
   NEXT;
 }
@@ -365,8 +360,8 @@ struct litstring {
 void litstring(PARAMS) {
   // get current
   struct litstring *str = (struct litstring*)((void**)eax+1);
-  *(--stacktop) = str->length;
-  *(--stacktop) = &str->str;
+  *(--stacktop) = (void*)str->length;
+  *(--stacktop) = (void*)&str->str;
   
   NEXT;
 }
@@ -474,11 +469,24 @@ void find(PARAMS) {
   NEXT;
 }
 
+int getkey(struct usefulstate *state, char *c) {
+  if (state->pos == state->length) {
+    int rv = state->getnexttoken(state);
+    if (rv < 0) {
+      return rv;
+    }
+  }
+
+  *c = state->line[state->pos++];
+  return 1;
+}
+
+
 
 void key(PARAMS) {
   char c;
   int rv = getkey(state, &c);
-  *(--stacktop) = c;
+  *(--stacktop) = (void*)c;
   NEXT;
 }
 
@@ -530,13 +538,13 @@ void cmove(PARAMS) {
   char *src =  (char*)(*stacktop++);
 
   while(length--)
-    *dest++ = src++;
+    *dest++ = *src++;
     
   NEXT;
 }
 
 void fetchbyte(PARAMS) {
-  char *addr = (void**)*stacktop++;
+  char *addr = (char*)*stacktop++;
   *(--stacktop) = (void*)(*addr);
   NEXT;
 }
@@ -557,18 +565,6 @@ void copybyte(PARAMS) {
   NEXT;
 }
 
-
-int getkey(struct usefulstate *state, char *c) {
-  if (state->pos == state->length) {
-    int rv = state->getnexttoken(state);
-    if (rv < 0) {
-      return rv;
-    }
-  }
-
-  *c = state->line[state->pos++];
-  return 1;
-}
 
 int _word(PARAMS) {
   int comment = 0;
@@ -614,8 +610,8 @@ int _word(PARAMS) {
 void word(PARAMS) {
   int rv = _word(ARGS);
   
-  *(--stacktop) = state->token;
-  *(--stacktop) = state->tokenlen;
+  *(--stacktop) = (void*)state->token;
+  *(--stacktop) = (void*)state->tokenlen;
   
   NEXT;
 }
@@ -626,7 +622,7 @@ void number(PARAMS) {
   intptr_t length = *((intptr_t*)stacktop++);
   char *s = *stacktop++;
   long value = strtol(s, NULL, 10);
-  *(--stacktop) = value;
+  *(--stacktop) = (void*)value;
   NEXT;
 }
 
@@ -658,8 +654,8 @@ void paren_loop(PARAMS) {
   index++;
   if (index != limit) {
     esi = ((void**)esi) + *((intptr_t*)esi);
-    *(--retstacktop) = index;
-    *(--retstacktop) = limit;
+    *(--retstacktop) = (void*)index;
+    *(--retstacktop) = (void*)limit;
   }
   else {
     esi = ((void**)esi)+1;

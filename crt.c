@@ -12,7 +12,7 @@
 
 int getline_line(struct usefulstate *state) {
   char *buf = NULL;
-  int length = 0;
+  size_t length = 0;
   state->length = getline(&buf, &length, stdin);
 
   state->line = buf;
@@ -66,11 +66,11 @@ int main(int argc, char** argv)
   struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 
   BLAH->prev = &EMIT;
-  strcpy(&BLAH->name,"blah");
+  strcpy((char*)&BLAH->name,"blah");
   BLAH->codeword = litstring;
   BLAH->extra[0] = (void*)5;
   
-  strcpy(&(BLAH->extra[1]), "yeah");
+  strcpy((char*)&(BLAH->extra[1]), "yeah");
   
   struct usefulstate state = { 0 };
   state.getnexttoken = getline_line;
