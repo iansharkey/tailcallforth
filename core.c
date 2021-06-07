@@ -7,17 +7,17 @@
 #include "core.h"
 
 // in the usual case (docol word A consisting of a list of words references b,c,d,...)
-//  esi points to the next word references in word A
+//  pc points to the next word references in word A
 //  eax points to the current executing word reference's code field 
 
 // in the case of an executing primitive word
-//  esi points to the next word to execute after finishing the primitive
+//  pc points to the next word to execute after finishing the primitive
 //  eax points to the currently executing word's code field
 
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
-  eax = *(void**)esi;
-  esi = ((void**)esi)+1;
+  eax = *(void**)pc;
+  pc = ((void**)pc)+1;
   block eax_ = *(block*)eax;
 
   __attribute__((musttail)) return eax_(ARGS);
@@ -27,17 +27,17 @@ __attribute__((noinline)) void next(PARAMS) {
 
 
 void docol(PARAMS) {
-    *(--retstacktop) = esi;
+    *(--retstacktop) = pc;
     eax = ((void**)eax)+1;
 
-    esi = eax;
+    pc = eax;
 
     NEXT;
 }
 
 
 void exit_(PARAMS) {
-    esi = *retstacktop++;
+    pc = *retstacktop++;
     NEXT;
 }
 
@@ -118,8 +118,8 @@ void drop(PARAMS) {
 
 
 void lit(PARAMS) {
-  *(--stacktop) = *((void**)esi);
-  esi = (void**)esi+1;
+  *(--stacktop) = *((void**)pc);
+  pc = (void**)pc+1;
   NEXT;
 }
 
@@ -366,8 +366,8 @@ void dspstore(PARAMS) {
 
 
 void branch(PARAMS) {
-  intptr_t offset = *(intptr_t*)esi;
-  esi += offset;
+  intptr_t offset = *(intptr_t*)pc;
+  pc += offset;
 
   NEXT;
 }
@@ -376,12 +376,12 @@ void zbranch(PARAMS) {
   void* value = *stacktop++;
   if (!value)
   {
-     intptr_t offset = *(intptr_t*)esi;
-     esi += offset;
+     intptr_t offset = *(intptr_t*)pc;
+     pc += offset;
   }
   else
   {
-    esi = ((void**)esi)+1;
+    pc = ((void**)pc)+1;
   }
   NEXT;
 }
@@ -390,8 +390,8 @@ void _dodoes(PARAMS) {
   void *value = *(((void**)eax)+1);
 
   if ( value ) {
-    *(--retstacktop) = esi;
-    esi = value;
+    *(--retstacktop) = pc;
+    pc = value;
   }
 
   eax = ((void**)eax)+2;
@@ -435,8 +435,8 @@ TODO
 
 
 void bracket_tick(PARAMS) {
-  eax = *(void**)esi;
-  esi = ((void**)esi)+1;
+  eax = *(void**)pc;
+  pc = ((void**)pc)+1;
   *(--stacktop) = eax;
   NEXT;
 }
@@ -664,12 +664,12 @@ void paren_loop(PARAMS) {
   intptr_t index = (intptr_t)(*retstacktop++);
   index++;
   if (index != limit) {
-    esi = ((void**)esi) + *((intptr_t*)esi);
+    pc = ((void**)pc) + *((intptr_t*)pc);
     *(--retstacktop) = (void*)index;
     *(--retstacktop) = (void*)limit;
   }
   else {
-    esi = ((void**)esi)+1;
+    pc = ((void**)pc)+1;
   }
   
   NEXT;
