@@ -22,11 +22,17 @@ int getline_line(struct usefulstate *state) {
 }
 
 
+void tell(PARAMS) {
+  char *addr = (char*)(*stacktop++);
+  intptr_t length = (intptr_t)(*stacktop++);
+  fwrite(addr, 1, length, stdout);
+  NEXT;
+}
 
 
 void display_number(PARAMS) {
   void *num = *stacktop++;
-  printf("%p\n", num);
+  printf("%p ", num);
   NEXT;
 }
 
@@ -60,15 +66,16 @@ int main(int argc, char** argv)
 
   struct word DISPLAY_NUMBER = { .prev = lastword, .name = ".", .codeword = display_number };
 
-  struct word EMIT = { .prev = &DISPLAY_NUMBER, .name = "emit", .codeword = emit };
-
+  struct word TELL = { .prev = &DISPLAY_NUMBER, .name = "tell", .codeword = tell };
   
+  struct word EMIT = { .prev = &TELL, .name = "emit", .codeword = emit };
+
   struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 
   BLAH->prev = &EMIT;
   strcpy((char*)&BLAH->name,"blah");
   BLAH->codeword = litstring;
-  BLAH->extra[0] = (void*)5;
+  BLAH->extra[0] = (void*)4;
   
   strcpy((char*)&(BLAH->extra[1]), "yeah");
   

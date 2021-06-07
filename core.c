@@ -53,7 +53,7 @@ void swap(PARAMS) {
 
 
 void over(PARAMS) {
-  void *value = *(stacktop+2);
+  void *value = *(((void**)stacktop)+1);
   *(--stacktop) = value;
   NEXT;
 }
@@ -225,44 +225,23 @@ void terminate(PARAMS) {
 }
 
 
-void equ(PARAMS) {
-  intptr_t a = *((intptr_t*)(stacktop++));
-  intptr_t b = *((intptr_t*)(stacktop++));
-  *(--stacktop) = (void*)(intptr_t)(a == b);
-  NEXT;
+
+#define logicalimpl(name, op) \
+void name(PARAMS) { \
+  intptr_t n2 = (intptr_t)(*stacktop++); \
+  intptr_t n1 = (intptr_t)(*stacktop++); \
+  *(--stacktop) = (void*)(n1 op n2); \
+  \
+  NEXT; \
 }
 
+logicalimpl(lt, <);
+logicalimpl(gt, >);
+logicalimpl(lte, <=);
+logicalimpl(gte, >=);
+logicalimpl(equ, ==);
+logicalimpl(nequ, !=);
 
-void nequ(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) != *(intptr_t*)stacktop);
-  stacktop--;
-  NEXT;
-}
-
-void lt(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) < *(intptr_t*)stacktop);
-  stacktop--;
-  NEXT;
-}
-
-void gt(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) > *(intptr_t*)stacktop);
-  stacktop--;
-  NEXT;
-}
-
-
-void lte(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) <= *(intptr_t*)stacktop);
-  stacktop--;
-  NEXT;
-}
-
-void gte(PARAMS) {
-  *(stacktop-1) = (void*)(*((intptr_t*)stacktop-1) >= *((intptr_t*)stacktop));
-  stacktop--;
-  NEXT;
-}
 
 void zequ(PARAMS) {
   *stacktop = (void*)(*(intptr_t*)stacktop == 0);
@@ -555,8 +534,8 @@ void stackbase(PARAMS) {
 
 
 void hidden(PARAMS) {
-  struct word *latest = state->latest;
-  latest->flags ^= F_HIDDEN;
+  struct word *word = (struct word*)(*stacktop++);
+  word->flags ^= F_HIDDEN;
   NEXT;
 }
 
