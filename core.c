@@ -309,7 +309,6 @@ void bitnot(PARAMS) {
 
 
 void fromr(PARAMS) {
-
   *(--stacktop) = *retstacktop;
   retstacktop++;
   NEXT;
@@ -323,12 +322,12 @@ void tor(PARAMS) {
 }
 
 void rspfetch(PARAMS) {
-  *(--stacktop) = *retstacktop;
+  *(--stacktop) = retstacktop;
   NEXT;
 }
 
 void rspstore(PARAMS) {
-  *retstacktop = *stacktop++;
+  retstacktop = *stacktop++;
   NEXT;
 }
 
