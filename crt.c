@@ -23,8 +23,9 @@ int getline_line(struct usefulstate *state) {
 
 
 void tell(PARAMS) {
-  char *addr = (char*)(*stacktop++);
   intptr_t length = (intptr_t)(*stacktop++);
+  char *addr = (char*)(*stacktop++);
+
   fwrite(addr, 1, length, stdout);
   NEXT;
 }
@@ -45,8 +46,12 @@ void emit(PARAMS) {
 void *libc_handle;
 
 void libc_dlsym(PARAMS) {
-  char *str;
-  *(stacktop--) = dlsym(libc_handle, str);
+  intptr_t length = (intptr_t)(*stacktop++);
+  char *addr = (char*)(*stacktop++);
+
+  void *func = dlsym(libc_handle, addr);
+  
+  *(--stacktop) = func;
   NEXT;
 }
 
@@ -56,7 +61,7 @@ int main(int argc, char** argv)
 
   void* datastack[256];
   void* returnstack[256];
-  void* buffer[256] = { 0 };
+  void* buffer[2048] = { 0 };
 
   void** stacktop = &datastack[255];
   void** retstacktop = &returnstack[255];
@@ -67,8 +72,10 @@ int main(int argc, char** argv)
   struct word DISPLAY_NUMBER = { .prev = lastword, .name = ".", .codeword = display_number };
 
   struct word TELL = { .prev = &DISPLAY_NUMBER, .name = "tell", .codeword = tell };
+
+  struct word DLSYM = { .prev = &TELL, .name = "dlsym", .codeword = libc_dlsym };
   
-  struct word EMIT = { .prev = &TELL, .name = "emit", .codeword = emit };
+  struct word EMIT = { .prev = &DLSYM, .name = "emit", .codeword = emit };
 
   struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 

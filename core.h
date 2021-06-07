@@ -6,8 +6,9 @@
 #ifndef CORE_H_
 #define CORE_H_
 enum INTERPRETER_STATE {
-    COMPILING,
-    IMMEDIATELY
+			IMMEDIATELY = 0,
+  	    COMPILING = 1,
+
 };
 
 enum WORD_FLAGS {

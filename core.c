@@ -345,9 +345,14 @@ struct litstring {
 
 void litstring(PARAMS) {
   // get current
-  struct litstring *str = (struct litstring*)((void**)eax+1);
-  *(--stacktop) = (void*)str->length;
+  struct litstring *str = (struct litstring*)pc;
+  
   *(--stacktop) = (void*)&str->str;
+  *(--stacktop) = (void*)str->length;
+
+  pc = (char*)pc + sizeof(struct litstring) + str->length;
+  int cellsize = sizeof(void*);
+  pc = (void*)(((intptr_t)pc + (cellsize - 1)) & ~(cellsize - 1));
   
   NEXT;
 }
@@ -713,7 +718,7 @@ struct word LIT = {  .prev = &FIND, .name = "lit", .codeword = lit };
                         
 struct word MUL = { .prev = &LIT, .name = "*", .codeword = mul };
 
-struct word EXIT = { .prev = &MUL, .name = "EXIT", .codeword = exit_ };
+struct word EXIT = { .prev = &MUL, .name = "exit", .codeword = exit_ };
 
 struct word COMMA = { .prev = &EXIT, .name = ",", .codeword = comma };
 
@@ -878,10 +883,12 @@ struct word FETCHBYTE = {.prev = &CMOVE, .name = "c@", .codeword = fetchbyte };
 
 struct word STOREBYTE = {.prev = &FETCHBYTE, .name = "c!", .codeword = storebyte };
 
+struct word LITSTRING = {.prev = &STOREBYTE, .name = "litstring", .codeword = litstring };
+
 #define logicalop(last, sname, fname, cword) \
   struct word sname = { .prev = &last, .name = fname, .codeword = cword }
 
-logicalop(STOREBYTE, EQU, "=", equ);
+logicalop(LITSTRING, EQU, "=", equ);
 logicalop(EQU, NEQU, "<>", nequ);
 logicalop(NEQU, LT, "<", lt);
 logicalop(LT, GT, ">", gt);
