@@ -22,6 +22,11 @@ int getline_line(struct usefulstate *state) {
 }
 
 
+int print_error(struct usefulstate *state) {
+  printf("parse error: %s", state->token);
+  return 0;
+}
+
 void tell(PARAMS) {
   intptr_t length = (intptr_t)(*stacktop++);
   char *addr = (char*)(*stacktop++);
@@ -54,6 +59,16 @@ void libc_dlsym(PARAMS) {
   *(--stacktop) = func;
   NEXT;
 }
+
+
+void invoke_c(PARAMS) {
+  void *a = *stacktop;
+  void *b = *(stacktop+1);
+  void *c = *(stacktop+2);
+  
+  NEXT;
+}
+
 
 extern void litstring(PARAMS);
 int main(int argc, char** argv)
@@ -88,6 +103,7 @@ int main(int argc, char** argv)
   
   struct usefulstate state = { 0 };
   state.getnexttoken = getline_line;
+  state.error = print_error;
   state.here = here;
   state.dp = buffer;
   state.stackbase = stacktop;

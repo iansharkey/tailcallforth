@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "core.h"
 
@@ -817,7 +819,15 @@ void interpret(PARAMS) {
   }
 
   if (!found) { // assume number
-    long v = strtol(state->token, NULL, 10);
+    char *endptr = NULL;
+    // this doesn't belong!!
+    long v = strtol(state->token, &endptr, 10);
+    if ( v == 0 ) { // check for error
+      if ( errno == EINVAL || state->token == endptr ) {
+	state->error(state);
+	NEXT;
+      }
+    }
     if ( state->state == COMPILING ) {
       void **dp = state->dp;
       *dp++ = &LIT.codeword;

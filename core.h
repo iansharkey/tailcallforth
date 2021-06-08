@@ -59,6 +59,7 @@ struct usefulstate {
   void **here;
   void **dp;
   int (*getnexttoken)(struct usefulstate *);
+  int (*error)(struct usefulstate *);
   char token[32];
   int tokenlen;
   char *line;
