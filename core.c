@@ -311,8 +311,7 @@ void bitnot(PARAMS) {
 
 
 void fromr(PARAMS) {
-  *(--stacktop) = *retstacktop;
-  retstacktop++;
+  *(--stacktop) = *retstacktop++;
   NEXT;
 }
 
@@ -507,7 +506,7 @@ void headercomma(PARAMS) {
 
   // add a new word 
   struct word *newword = (struct word*)dp;
-  __builtin_memcpy(newword->name, name, 10);
+  __builtin_memcpy(newword->name, name, 15);
   newword->prev = state->latest;
   newword->flags = 0;
 
@@ -638,7 +637,7 @@ void word(PARAMS) {
 void number(PARAMS) {
   intptr_t length = *((intptr_t*)stacktop++);
   char *s = *stacktop++;
-  long value = strtol(s, NULL, 10);
+  long value = strtol(s, NULL, 0);
   *(--stacktop) = (void*)value;
   NEXT;
 }
@@ -789,6 +788,7 @@ struct word SEMICOLON = { .prev = &COLON, .flags = F_IMMEDIATE, .name = ";", .co
 				&LBRAC.codeword, &EXIT.codeword } };
 
 void interpret(PARAMS) {
+  errno = 0;
   int rv = _word(ARGS);
   if (rv < 0) {
     return;
@@ -821,7 +821,7 @@ void interpret(PARAMS) {
   if (!found) { // assume number
     char *endptr = NULL;
     // this doesn't belong!!
-    long v = strtol(state->token, &endptr, 10);
+    long v = strtol(state->token, &endptr, 0);
     if ( v == 0 ) { // check for error
       if ( errno == EINVAL || state->token == endptr ) {
 	state->error(state);
