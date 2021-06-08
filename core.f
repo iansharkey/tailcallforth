@@ -139,6 +139,15 @@
     r> latest @ >dfa !
 ;
 
+: allot
+   dp +!
+ ;
+
+: variable
+  word header,
+  dodoes , 0 ,
+  cells allot
+ ;
 
 \ : test dup if dup . 1- recurse then 69 . ;
 
@@ -148,4 +157,27 @@
 
 \ : test 5 begin dup . 1- 0= until ;
 
+
+: clean-stack ( n -- )
+  dsp@ swap 1+ cells * + dsp!
+ ;
+
+: c-call ( n_m … n_2 n_1 — rv )
+   word dlsym c-invoke
+   >r ( save return value )
+   word number clean-stack
+   r>  ( restore return value )
+  ;
+
+: c-compile immediate
+  ['] lit ,
+  word dlsym ,
+  ['] c-invoke ,
+ ;
+
+: open ( mode addr length -- rv )
+  drop
+  c-compile open 
+  >r 2 clean-stack r>
+ ;
 

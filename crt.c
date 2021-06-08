@@ -61,10 +61,22 @@ void libc_dlsym(PARAMS) {
 }
 
 
+void _stdout(PARAMS) {
+  *(--stacktop) = (void*)stdout;
+  NEXT;
+}
+
 void invoke_c(PARAMS) {
+  intptr_t (*f)() = (intptr_t (*)())*stacktop++; 
   void *a = *stacktop;
   void *b = *(stacktop+1);
   void *c = *(stacktop+2);
+  void *d = *(stacktop+3);
+
+  intptr_t rv = f(a,b,c,d);
+
+  *(--stacktop) = (void*)rv;
+
   
   NEXT;
 }
@@ -89,8 +101,12 @@ int main(int argc, char** argv)
   struct word TELL = { .prev = &DISPLAY_NUMBER, .name = "tell", .codeword = tell };
 
   struct word DLSYM = { .prev = &TELL, .name = "dlsym", .codeword = libc_dlsym };
+
+  struct word INVOKE_C = {.prev = &DLSYM, .name = "c-invoke", .codeword = invoke_c };
+
+  struct word STDOUT = {.prev = &INVOKE_C, .name = "stdout", .codeword = _stdout };
   
-  struct word EMIT = { .prev = &DLSYM, .name = "emit", .codeword = emit };
+  struct word EMIT = { .prev = &STDOUT, .name = "emit", .codeword = emit };
 
   struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 
