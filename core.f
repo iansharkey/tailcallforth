@@ -51,12 +51,12 @@
 	      repeat
 	      drop drop
 	      ')' emit space
-		 ;
+ ;
  
  
 : c,
  here c!
- 1	 dp +!
+ 1 dp +!
 ;
 
 : cellalign cells 1- + cells 1- invert and ;
@@ -119,6 +119,25 @@
     again
   then
   ;
+
+
+: constant
+  word
+  header,
+  docol ,
+  ['] lit ,
+  ,
+  ['] exit
+;
+
+: create
+  word header,
+  dodoes , 0 ,
+;
+
+: does>
+    r> latest @ >dfa !
+;
 
 
 \ : test dup if dup . 1- recurse then 69 . ;
