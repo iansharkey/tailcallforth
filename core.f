@@ -97,8 +97,12 @@
            over c!
 	   1+
        repeat
+
        drop
-       here -
+       0 over c! 1+ \ add NUL byte
+
+       
+       here - 1- \ don't include NUL byte in length
        here
        swap
        then
