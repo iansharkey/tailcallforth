@@ -185,3 +185,25 @@
   >r 2 clean-stack r>
  ;
 
+
+: end-c ( args... rv n_args -- rv )
+   swap
+   >r
+   clean-stack
+   r>
+ ;
+
+: opendir
+  drop
+  c-compile opendir 1
+  end-c
+ ;
+
+: readdir
+   dup
+   c-compile readdir 1
+   end-c
+   8 + dup
+   c-compile strlen 1
+   end-c
+ ;
