@@ -33,21 +33,24 @@
 ;
 
 
+: cells cellsize * ;
+
+	
  : nip ( x y -- y ) swap drop ;
  : tuck ( x y -- y x y ) dup rot ;
- : pick 1+ cells * dsp@ + @ ;
+ : pick 1+ cellsize * dsp@ + @ ;
 
 : space 32 emit ;
 
 : .s '(' emit space
 	      dsp@
-	      0 s0 +  cells -
+	      0 s0 + 1 cells -
 	      begin
 	      over over <=
 	      while
 	      dup @ .
 	      space
-	      cells -
+              1 cells -
 	      repeat
 	      drop drop
 	      ')' emit space
@@ -59,7 +62,7 @@
  1 dp +!
 ;
 
-: cellalign cells 1- + cells 1- invert and ;
+: cellalign 1 cells 1- + 1 cells 1- invert and ;
 
 : align here cellalign dp ! ;
 
@@ -85,7 +88,7 @@
 	 0 c, ( include a null terminator )
 	 dup
 	 here swap -
-	 cells - 1- ( don't count the null )
+         1 cells - 1- ( don't count the null )
 	 swap !
 	 align
     else
@@ -150,7 +153,7 @@
 : variable
   word header,
   dodoes , 0 ,
-  cells allot
+  1 cells allot
  ;
 
 \ : test dup if dup . 1- recurse then 69 . ;
@@ -163,14 +166,21 @@
 
 
 : clean-stack ( n -- )
-  dsp@ swap 1+ cells * + dsp!
+  dsp@ swap 1+ cells + dsp!
  ;
+
+
+: end-c ( args... rv n_args -- rv )
+   swap
+   >r ( save return value )
+   clean-stack
+   r> ( restore return value )
+ ;
+
 
 : c-call ( n_m … n_2 n_1 — rv )
    word dlsym c-invoke
-   >r ( save return value )
-   word number clean-stack
-   r>  ( restore return value )
+   word number end-c
   ;
 
 : c-compile immediate
@@ -181,29 +191,93 @@
 
 : open ( mode addr length -- rv )
   drop
-  c-compile open 
-  >r 2 clean-stack r>
+  c-compile open 2 end-c
  ;
 
-
-: end-c ( args... rv n_args -- rv )
-   swap
-   >r
-   clean-stack
-   r>
- ;
-
-: opendir
+: opendir ( addr length -- dirp )
   drop
-  c-compile opendir 1
-  end-c
+  c-compile opendir 1 end-c
  ;
 
-: readdir
+: readdir ( dirp -- dirp dirent )
    dup
-   c-compile readdir 1
-   end-c
-   8 + dup
-   c-compile strlen 1
-   end-c
+   c-compile readdir 1 end-c
+ ;
+
+
+
+: puts ( c-str -- )
+  c-compile puts 1 end-c drop
+ ;
+
+: displaydir ( dir -- dir )
+   begin
+     readdir
+     dup \ nul entry?
+
+   while
+     8 + puts
+   repeat
+
+   drop
+ ;
+
+
+: prep-hash-data
+   here rot swap 
+ ;
+
+: md5 ( addr len -- md5_addr md5_len ) 
+  prep-hash-data
+  c-compile CC_MD5 3 end-c
+  16	 \ add length (16 by definition)
+ ;
+
+: sha1 
+  prep-hash-data
+  c-compile CC_SHA1 3 end-c
+  20	\ add length (20 by definition)
+;
+
+: sysctl ( newdatalen newdata olddatalen olddata mib-length mib -- rv )
+  c-compile sysctl 6 end-c
+ ;
+
+
+: CTL_KERN 1 ;
+
+: KERN_OSRELEASE 2 ;
+
+\ 0x200000001 dsp@ >r 0 0 here 0 2 r> sysctl
+
+: get-darwin-ver
+ 0x200000001
+ dsp@ >r 0 0 here 0 2 r> sysctl drop 
+ dsp@ >r 0 0 here here 1 cells + 2 r> sysctl drop
+ drop
+ here 1 cells +  here @
+ ;
+
+: load-uname \ load uname into here (transiently)
+  here
+  c-compile uname 1 end-c drop
+ ;
+
+: get-uname-fld ( entry -- addr )
+  here 256 -rot * +
+ ;
+
+: getifaddrs
+   0 dsp@ 
+   c-compile getifaddrs 1 end-c drop
+ ;
+
+: step-ifaddr
+  @
+ ;
+
+: get-ifname
+   dup if
+     dup 1 cells + @ 
+   then
  ;

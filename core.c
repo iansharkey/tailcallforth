@@ -522,8 +522,21 @@ void immediate(PARAMS) {
 }
 
 
-void cells(PARAMS) {
+void cellsize(PARAMS) {
   *(--stacktop) = sizeof(void*);
+  NEXT;
+}
+
+
+void platform(PARAMS) {
+  *(--stacktop) = TAILCALL_FORTH_PLATFORM_NAME;
+  *(--stacktop) = sizeof(TAILCALL_FORTH_PLATFORM_NAME);
+  NEXT;
+}
+
+void arch(PARAMS) {
+  *(--stacktop) = TAILCALL_FORTH_ARCH_NAME;
+  *(--stacktop) = sizeof(TAILCALL_FORTH_ARCH_NAME);
   NEXT;
 }
 
@@ -536,6 +549,12 @@ void stackbase(PARAMS) {
   *(--stacktop) = state->stackbase;
   NEXT;
 }
+
+void dpbase(PARAMS) {
+  *(--stacktop) = state->dpbase;
+  NEXT;
+}
+
 
 
 void hidden(PARAMS) {
@@ -925,9 +944,12 @@ logicalop(RSPFETCH, RSPSTORE, "rsp!", rspstore);
 logicalop(RSPSTORE, RDROP, "rdrop", rspdrop); 
 
 logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
-logicalop(DSPFETCH, CELLS, "cells", cells);
-logicalop(CELLS, DOCOL_ADDR, "docol", docol_addr);
+logicalop(DSPFETCH, CELLS, "cellsize", cellsize);
+logicalop(CELLS, PLATFORM, "platform", platform);
+logicalop(PLATFORM, ARCH, "arch", arch);
+logicalop(ARCH, DOCOL_ADDR, "docol", docol_addr);
 logicalop(DOCOL_ADDR, STACKBASE, "s0", stackbase);
+logicalop(STACKBASE, DPBASE, "dp0", stackbase);
 logicalop(STACKBASE, DSPSTORE, "dsp!", dspstore);
 
 

@@ -15,6 +15,9 @@ int getline_line(struct usefulstate *state) {
   size_t length = 0;
   state->length = getline(&buf, &length, stdin);
 
+  if (state->line) {
+    free(state->line);
+  }
   state->line = buf;
   state->pos = 0;
   
@@ -67,13 +70,15 @@ void _stdout(PARAMS) {
 }
 
 void invoke_c(PARAMS) {
-  intptr_t (*f)() = (intptr_t (*)())*stacktop++; 
+  intptr_t (*func)() = (intptr_t (*)())*stacktop++; 
   void *a = *stacktop;
   void *b = *(stacktop+1);
   void *c = *(stacktop+2);
   void *d = *(stacktop+3);
+  void *e = *(stacktop+4);
+  void *f = *(stacktop+5);
 
-  intptr_t rv = f(a,b,c,d);
+  intptr_t rv = func(a,b,c,d,e,f);
 
   *(--stacktop) = (void*)rv;
 
@@ -92,7 +97,6 @@ int main(int argc, char** argv)
 
   void** stacktop = &datastack[255];
   void** retstacktop = &returnstack[255];
-  void** here = &buffer[0];
 
   libc_handle = dlopen("libc.dylib", RTLD_LAZY);
 
@@ -120,8 +124,8 @@ int main(int argc, char** argv)
   struct usefulstate state = { 0 };
   state.getnexttoken = getline_line;
   state.error = print_error;
-  state.here = here;
   state.dp = buffer;
+  state.dpbase = buffer;
   state.stackbase = stacktop;
   //  state.latest = &DISPLAY_NUMBER;
   state.latest = BLAH;

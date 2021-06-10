@@ -39,6 +39,9 @@ typedef void (*block)(struct usefulstate*, void*, void*, void**, void**, void*);
 //void* latest;
 //void* dict[1024];
 
+#define TAILCALL_FORTH_PLATFORM_NAME "macos"
+#define TAILCALL_FORTH_ARCH_NAME "x86_64"
+
 
 struct word {
     struct word* prev;
@@ -56,7 +59,7 @@ struct word {
 struct usefulstate {
   struct word *latest;
   void **stackbase;
-  void **here;
+  void **dpbase;
   void **dp;
   int (*getnexttoken)(struct usefulstate *);
   int (*error)(struct usefulstate *);
