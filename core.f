@@ -68,8 +68,6 @@
 
 : '"' [char] " ;
 
-6969696969 .
-
 : s" immediate
 
   state @ if
@@ -134,7 +132,7 @@
   docol ,
   ['] lit ,
   ,
-  ['] exit
+  ['] exit ,
 ;
 
 : create
@@ -176,6 +174,10 @@
    clean-stack
    r> ( restore return value )
  ;
+
+: dlsym ( sym-name sym-len -- sym-addr )
+  drop -2 dlsym-addr c-invoke 2 ;c
+ 
 
 
 : c-call ( n_m … n_2 n_1 — rv )
@@ -287,9 +289,16 @@
 
 : xml-wrap ( tag-addr tag-len xt -- )
   >r 2dup ." <" tell ." >" r>
+  10 emit
   execute
+
   ." </" tell ." >"
+  10 emit
  ;
 
 
  
+\ 8 2 or s" /System/Library/Frameworks/Security.framework/Security" drop c-call dlopen 2
+\
+
+\ dup s" SSLNewContext" drop swap c-call dlsym 2 

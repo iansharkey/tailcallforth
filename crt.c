@@ -51,15 +51,9 @@ void emit(PARAMS) {
   NEXT;
 }
 
-void *libc_handle;
 
 void libc_dlsym(PARAMS) {
-  intptr_t length = (intptr_t)(*stacktop++);
-  char *addr = (char*)(*stacktop++);
-
-  void *func = dlsym(libc_handle, addr);
-  
-  *(--stacktop) = func;
+  *(--stacktop) = (void*)dlsym;
   NEXT;
 }
 
@@ -98,13 +92,11 @@ int main(int argc, char** argv)
   void** stacktop = &datastack[255];
   void** retstacktop = &returnstack[255];
 
-  libc_handle = dlopen("libc.dylib", RTLD_LAZY);
-
   struct word DISPLAY_NUMBER = { .prev = lastword, .name = ".", .codeword = display_number };
 
   struct word TELL = { .prev = &DISPLAY_NUMBER, .name = "tell", .codeword = tell };
 
-  struct word DLSYM = { .prev = &TELL, .name = "dlsym", .codeword = libc_dlsym };
+  struct word DLSYM = { .prev = &TELL, .name = "dlsym-addr", .codeword = libc_dlsym };
 
   struct word INVOKE_C = {.prev = &DLSYM, .name = "c-invoke", .codeword = invoke_c };
 
@@ -126,6 +118,7 @@ int main(int argc, char** argv)
   state.error = print_error;
   state.dp = buffer;
   state.dpbase = buffer;
+  *(--retstacktop) = &RET.codeword;
   state.stackbase = stacktop;
   //  state.latest = &DISPLAY_NUMBER;
   state.latest = BLAH;
