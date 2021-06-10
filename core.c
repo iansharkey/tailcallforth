@@ -416,6 +416,10 @@ void dp(PARAMS) {
   NEXT;
 }
 
+void ret(PARAMS) { // exits cleanly
+}
+
+
 /*
 TODO
  x sub, divmod, incr, decr
@@ -950,7 +954,8 @@ logicalop(PLATFORM, ARCH, "arch", arch);
 logicalop(ARCH, DOCOL_ADDR, "docol", docol_addr);
 logicalop(DOCOL_ADDR, STACKBASE, "s0", stackbase);
 logicalop(STACKBASE, DPBASE, "dp0", stackbase);
-logicalop(STACKBASE, DSPSTORE, "dsp!", dspstore);
+logicalop(DPBASE, RET, "ret", ret);
+logicalop(RET, DSPSTORE, "dsp!", dspstore);
 
 
 void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)(-2*sizeof(void*)), &TERMINATE.codeword };

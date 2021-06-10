@@ -87,6 +87,7 @@ __attribute__((noinline)) void next(PARAMS);
 
 extern void *defaultprogram[];
 extern struct word *lastword;
+extern struct word RET;
 
 
 #define NEXT __attribute__((musttail)) return ((block)(next_))(ARGS)
