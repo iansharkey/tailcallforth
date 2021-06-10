@@ -229,7 +229,7 @@
 
 : md5 ( addr len -- md5_addr md5_len ) 
   prep-hash-data
-  c-compile CC_MD5 3 end-c
+  c-compile CC_MD5 3 end-c \ leaves buffer on stack
   16	 \ add length (16 by definition)
  ;
 
@@ -281,3 +281,15 @@
      dup 1 cells + @ 
    then
  ;
+
+
+: ' word (find) >cfa ;
+
+: xml-wrap ( tag-addr tag-len xt -- )
+  >r 2dup ." <" tell ." >" r>
+  execute
+  ." </" tell ." >"
+ ;
+
+
+ 
