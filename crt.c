@@ -45,7 +45,7 @@ void display_number(PARAMS) {
   NEXT;
 }
 
-void emit(PARAMS) {
+static void emit(PARAMS) {
   char c = (char)(*stacktop++);
   putchar(c);
   NEXT;
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 
   void* datastack[256];
   void* returnstack[256];
-  void* buffer[2048] = { 0 };
+  void* buffer[0x8000];;
 
   void** stacktop = &datastack[255];
   void** retstacktop = &returnstack[255];
