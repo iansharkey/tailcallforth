@@ -1,4 +1,4 @@
-
+ 
 : reset s0 dsp! ;
 : literal immediate ['] lit , , ;
 : here dp @ ;
@@ -90,7 +90,7 @@
 	 here swap -
          1 cells - 1- ( don't count the null )
 	 swap !
-	 1+ align
+	 align
     else
        here
        begin
@@ -221,7 +221,7 @@
      dup \ nul entry?
 
    while
-     8 + puts
+     8 + dup [c] strlen 1 end-c tell cr
    repeat
 
    drop
@@ -324,18 +324,44 @@
    arch tell
  ;
 
+: get-etc-dir
+  s" /etc/" opendir
+  dup displaydir
+  [c] closedir 1 end-c
+  drop drop
+ ;
+
+
+: hw-uuid ( -- uuid2 uuid1 )
+ 0 0 dsp@ >r
+ 0 0 dsp@ r>
+ [c] gethostuuid 2 end-c
+ drop drop drop
+; 
+
+: get-hw-uuid
+  hw-uuid . .
+;
+
+
 : characterize
-   s" timeaaaaaaaaa" ['] gettime  xml-wrap
+   s" time" ['] gettime  xml-wrap
    s" host" ['] gethostname xml-wrap
    s" osver" ['] get-darwin-ver xml-wrap
 
    s" arch" ['] get-arch xml-wrap
    s" platform" ['] get-platform xml-wrap
+   s" etc" ['] get-etc-dir xml-wrap
+   s" hwuuid" ['] get-hw-uuid xml-wrap
  ;
 
 : request
   s" request" ['] characterize xml-wrap
  ;
 
-platform
 \ request
+
+\ 8 2 or s" /System/Library/Frameworks/IOKit.framework/IOKit" drop c-call dlopen 2
+
+\ dup s" kIOMasterPortDefault" drop swap c-call dlsym 2 .
+
