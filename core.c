@@ -351,7 +351,7 @@ void litstring(PARAMS) {
   *(--stacktop) = (void*)&str->str;
   *(--stacktop) = (void*)str->length;
 
-  pc = (char*)pc + sizeof(struct litstring) + str->length;
+  pc = (char*)pc + sizeof(struct litstring) + str->length + 1;
   int cellsize = sizeof(void*);
   pc = (void*)(((intptr_t)pc + (cellsize - 1)) & ~(cellsize - 1));
   
