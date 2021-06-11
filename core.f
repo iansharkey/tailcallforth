@@ -14,6 +14,9 @@
 : repeat immediate ['] branch , here - , dup here swap - swap ! ;
 
 : char word drop c@ ;
+: cr
+  10 emit
+ ;
 
 : [char] immediate char ['] lit , , ;
 
@@ -76,7 +79,6 @@
 	 here
          0 ,
 	 begin
-
 	    key
 	    dup '"' <>
 	 while
@@ -88,7 +90,7 @@
 	 here swap -
          1 cells - 1- ( don't count the null )
 	 swap !
-	 align
+	 1+ align
     else
        here
        begin
@@ -186,7 +188,7 @@
    word number end-c
   ;
 
-: c-compile immediate
+: [c] immediate
   ['] lit ,
   word dlsym ,
   ['] c-invoke ,
@@ -194,23 +196,23 @@
 
 : open ( mode addr length -- rv )
   drop
-  c-compile open 2 end-c
+  [c] open 2 end-c
  ;
 
 : opendir ( addr length -- dirp )
   drop
-    c-compile opendir 1 end-c
+    [c] opendir 1 end-c
  ;
 
 : readdir ( dirp -- dirp dirent )
    dup
-   c-compile readdir 1 end-c
+   [c] readdir 1 end-c
  ;
 
 
 
 : puts ( c-str -- )
-  c-compile puts 1 end-c drop
+  [c] puts 1 end-c drop
  ;
 
 : displaydir ( dir -- dir )
@@ -232,18 +234,18 @@
 
 : md5 ( addr len -- md5_addr md5_len ) 
   prep-hash-data
-  c-compile CC_MD5 3 end-c \ leaves buffer on stack
+  [c] CC_MD5 3 end-c \ leaves buffer on stack
   16	 \ add length (16 by definition)
  ;
 
 : sha1 
   prep-hash-data
-  c-compile CC_SHA1 3 end-c
+  [c] CC_SHA1 3 end-c
   20	\ add length (20 by definition)
 ;
 
 : sysctl ( newdatalen newdata olddatalen olddata mib-length mib -- rv )
-  c-compile sysctl 6 end-c
+  [c] sysctl 6 end-c
  ;
 
 
@@ -253,17 +255,17 @@
 
 \ 0x200000001 dsp@ >r 0 0 here 0 2 r> sysctl
 
-: get-darwin-ver
+: get-darwin-ver ( -- addr len )
  0x200000001
  dsp@ >r 0 0 here 0 2 r> sysctl drop 
  dsp@ >r 0 0 here here 1 cells + 2 r> sysctl drop
  drop
- here 1 cells +  here @
+ here 1 cells +  here @ tell
  ;
 
 : load-uname \ load uname into here (transiently)
   here
-  c-compile uname 1 end-c drop
+  [c] uname 1 end-c drop
  ;
 
 : get-uname-fld ( entry -- addr )
@@ -272,7 +274,7 @@
 
 : getifaddrs
    0 dsp@ 
-   c-compile getifaddrs 1 end-c drop
+   [c] getifaddrs 1 end-c drop
  ;
 
 : step-ifaddr
@@ -288,14 +290,11 @@
 
 : ' word (find) >cfa ;
 
-: cr
-  10 emit
- ;
 
 
 : xml-wrap ( tag-addr tag-len xt -- )
   >r 2dup ." <" tell ." >" r> cr
-  execute
+  execute cr
 
   ." </" tell ." >" cr
  ;
@@ -309,17 +308,34 @@
 
 
 : gettime
-  0 c-compile time 1 end-c . cr
+  0 [c] time 1 end-c .
  ;
 
 : gethostname
   load-uname
-  1 get-uname-fld puts
+  1 get-uname-fld 256 tell
  ;
 
+: get-platform
+  platform tell
+ ;
+
+: get-arch
+   arch tell
+ ;
 
 : characterize
-   s" time" ['] gettime  xml-wrap
+   s" timeaaaaaaaaa" ['] gettime  xml-wrap
    s" host" ['] gethostname xml-wrap
+   s" osver" ['] get-darwin-ver xml-wrap
+
+   s" arch" ['] get-arch xml-wrap
+   s" platform" ['] get-platform xml-wrap
  ;
 
+: request
+  s" request" ['] characterize xml-wrap
+ ;
+
+platform
+\ request
