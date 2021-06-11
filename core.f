@@ -176,7 +176,8 @@
  ;
 
 : dlsym ( sym-name sym-len -- sym-addr )
-  drop -2 dlsym-addr c-invoke 2 ;c
+  drop -2 dlsym-addr c-invoke 2 end-c
+ ;
  
 
 
@@ -198,7 +199,7 @@
 
 : opendir ( addr length -- dirp )
   drop
-  c-compile opendir 1 end-c
+    c-compile opendir 1 end-c
  ;
 
 : readdir ( dirp -- dirp dirent )
@@ -287,13 +288,16 @@
 
 : ' word (find) >cfa ;
 
-: xml-wrap ( tag-addr tag-len xt -- )
-  >r 2dup ." <" tell ." >" r>
+: cr
   10 emit
+ ;
+
+
+: xml-wrap ( tag-addr tag-len xt -- )
+  >r 2dup ." <" tell ." >" r> cr
   execute
 
-  ." </" tell ." >"
-  10 emit
+  ." </" tell ." >" cr
  ;
 
 
@@ -302,3 +306,20 @@
 \
 
 \ dup s" SSLNewContext" drop swap c-call dlsym 2 
+
+
+: gettime
+  0 c-compile time 1 end-c . cr
+ ;
+
+: gethostname
+  load-uname
+  1 get-uname-fld puts
+ ;
+
+
+: characterize
+   s" time" ['] gettime  xml-wrap
+   s" host" ['] gethostname xml-wrap
+ ;
+
