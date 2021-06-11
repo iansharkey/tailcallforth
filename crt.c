@@ -96,17 +96,19 @@ int main(int argc, char** argv)
 
   struct word TELL = { .prev = &DISPLAY_NUMBER, .name = "tell", .codeword = tell };
 
-  struct word DLSYM = { .prev = &TELL, .name = "dlsym-addr", .codeword = libc_dlsym };
+  struct word EMIT = { .prev = &TELL, .name = "emit", .codeword = emit };
+
+  struct word DLSYM = { .prev = &EMIT, .name = "dlsym-addr", .codeword = libc_dlsym };
 
   struct word INVOKE_C = {.prev = &DLSYM, .name = "c-invoke", .codeword = invoke_c };
 
   struct word STDOUT = {.prev = &INVOKE_C, .name = "stdout", .codeword = _stdout };
   
-  struct word EMIT = { .prev = &STDOUT, .name = "emit", .codeword = emit };
+
 
   struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 
-  BLAH->prev = &EMIT;
+  BLAH->prev = &STDOUT;
   strcpy((char*)&BLAH->name,"blah");
   BLAH->codeword = litstring;
   BLAH->extra[0] = (void*)4;
