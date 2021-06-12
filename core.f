@@ -2,6 +2,8 @@
 : reset s0 dsp! ;
 : literal immediate ['] lit , , ;
 : here dp @ ;
+
+
 : [compile] immediate word (find) >cfa , ;
 : recurse immediate latest @ >cfa , ;
 : if immediate ['] 0branch , here 0 , ;
@@ -144,6 +146,20 @@
 
 : does>
     r> latest @ >dfa !
+;
+
+: word-len ( word-addr -- name-len )
+   1 cells + @
+   0xff and
+   3 shr
+ ;
+
+
+: word-name ( word-addr -- name-addr )
+   1 cells + dup    \ prep stack
+   @ 0xff and 3 shr \ calc size
+   swap 1+          \ adjust addr
+   swap             \ setup for string
 ;
 
 : allot
@@ -307,11 +323,11 @@
 \ dup s" SSLNewContext" drop swap c-call dlsym 2 
 
 
-: gettime
+: get-time
   0 [c] time 1 end-c .
  ;
 
-: gethostname
+: get-hostname
   load-uname
   1 get-uname-fld 256 tell
  ;
@@ -344,19 +360,39 @@
 ;
 
 
-: characterize
-   s" time" ['] gettime  xml-wrap
-   s" host" ['] gethostname xml-wrap
-   s" osver" ['] get-darwin-ver xml-wrap
+: xmlify immediate
+  word (find) dup word-name
+  state @ if
+   swap
+   ['] lit , ,
+   ['] lit , ,
+   ['] lit , >cfa ,
+   ['] xml-wrap ,
+  else
+   -rot >cfa xml-wrap
+  then
+; 
 
-   s" arch" ['] get-arch xml-wrap
-   s" platform" ['] get-platform xml-wrap
-   s" etc" ['] get-etc-dir xml-wrap
-   s" hwuuid" ['] get-hw-uuid xml-wrap
+: binary-info
+   xmlify get-arch
+   xmlify get-platform
+; 
+
+: posix-info
+   xmlify get-time
+   xmlify get-hostname
+; 
+
+: darwin-info
+   xmlify get-darwin-ver
+   xmlify get-etc-dir
+   xmlify get-hw-uuid
  ;
 
 : request
-  s" request" ['] characterize xml-wrap
+  xmlify binary-info 
+  xmlify posix-info
+  xmlify darwin-info
  ;
 
 \ request
