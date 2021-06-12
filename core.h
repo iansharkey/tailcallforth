@@ -44,12 +44,13 @@ typedef void (*block)(struct usefulstate*, void*, void*, void**, void**, void*);
 
 
 struct word {
-    struct word* prev;
-    char name[15];
-    unsigned int flags:4;
+  struct word* prev;
+  unsigned int flags:3;
+  unsigned int len:5;
+  char name[15];
 
-    block codeword; // first impl block is machine word
-    void* extra[];
+  block codeword; // first impl block is machine word
+  void* extra[];
 };
 
 

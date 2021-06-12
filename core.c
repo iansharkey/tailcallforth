@@ -450,6 +450,11 @@ void bracket_tick(PARAMS) {
   NEXT;
 }
 
+void nextaddr(PARAMS) {
+  *(--stacktop) = &next;
+  NEXT;
+}
+
 void find(PARAMS) {
   struct word *word = state->latest;
 
@@ -513,6 +518,7 @@ void headercomma(PARAMS) {
   __builtin_memcpy(newword->name, name, 15);
   newword->prev = state->latest;
   newword->flags = 0;
+  newword->len = length;
 
   state->dp = (void**)&newword->codeword;
   state->latest = newword;
@@ -728,74 +734,61 @@ void execute(PARAMS) {
 }
 
 
-struct word FETCH = { .prev = NULL, .name = "@",
-                     .codeword = fetch };
+void shl(PARAMS) {
+  uintptr_t amount = (intptr_t)*stacktop++;
+  uintptr_t v = (intptr_t)*stacktop++;
+  *(--stacktop) = v << amount;
+  NEXT;
+}
 
-struct word DUP = { .prev = &FETCH, .name = "dup",
-                      .codeword =  dup };
-
-static struct word FIND = {  .prev = &DUP, .name = "(find)", .codeword = find };
-
-struct word LIT = {  .prev = &FIND, .name = "lit", .codeword = lit };
-
-
-                        
-struct word MUL = { .prev = &LIT, .name = "*", .codeword = mul };
-
-struct word EXIT = { .prev = &MUL, .name = "exit", .codeword = exit_ };
-
-struct word COMMA = { .prev = &EXIT, .name = ",", .codeword = comma };
-
-struct word LBRAC = { .prev = &COMMA, .name = "[", .codeword = lbrac, .flags = F_IMMEDIATE };
-
-struct word RBRAC = { .prev = &LBRAC, .name = "]", .codeword = rbrac };
-
-struct word TERMINATE = { .prev = &RBRAC, .name = "bye", .codeword = terminate };
-
-struct word ADD = { .prev = &TERMINATE, .name = "+", .codeword = add };
-struct word SUB = { .prev = &ADD, .name = "-", .codeword = sub };
-
-struct word INCR = { .prev = &SUB, .name = "1+", .codeword = incr };
-struct word DECR = { .prev = &INCR, .name = "1-", .codeword = decr };
-
-struct word BRANCH = {.prev = &DECR, .name = "branch", .codeword = branch };
+void shr(PARAMS) {
+  uintptr_t amount = (intptr_t)*stacktop++;
+  uintptr_t v = (intptr_t)*stacktop++;
+  *(--stacktop) = v >> amount;
+  NEXT;
+}
 
 
-
-struct word ZBRANCH = {.prev = &BRANCH, .name = "0branch", .codeword = zbranch };
-
-struct word WORD = {.prev = &ZBRANCH, .name = "word", .codeword = word };
-
-struct word KEY = {.prev= &WORD, .name = "key", .codeword = key };
-
-struct word NUMBER = {.prev = &KEY, .name = "number", .codeword = number };
-
-struct word HEADERCOMMA = {.prev = &NUMBER, .name = "header,", .codeword = headercomma };
-
-struct word BRACKET_TICK = {.prev = &HEADERCOMMA, .name = "[']", .codeword = bracket_tick };
-
-struct word STATE = {.prev = &BRACKET_TICK, .name = "state", .codeword = compilestate };
-
-struct word PAREN_DO = {.prev = &STATE, .name = "(do)", .codeword = paren_do };
-
-struct word PAREN_LOOP = {.prev = &PAREN_DO, .name = "(loop)", .codeword = paren_loop };
-
-struct word INNER_INDEX = {.prev = &PAREN_LOOP, .name = "i", .codeword = inner_index };
-
-struct word OUTER_INDEX = {.prev = &INNER_INDEX, .name = "j", .codeword = outer_index };
+#define simpleprim(sname, fname, cword, last)				\
+  struct word sname = { .prev = &last, .name = fname, .len=sizeof(fname)-1, .codeword = cword }
+#define immediateprim(sname, fname, cword, last)				\
+  struct word sname = { .prev = &last, .name = fname, .len=sizeof(fname)-1, .codeword = cword, .flags= F_IMMEDIATE }
 
 
-struct word LATEST = {.prev = &OUTER_INDEX, .name = "latest", .codeword = latest };
+struct word FETCH = {  .prev = NULL, .name = "@", .len = 1, .codeword = fetch };
 
-struct word DP = {.prev = &LATEST, .name = "dp", .codeword = dp };
+simpleprim(DUP, "dup", dup, FETCH);
+simpleprim(FIND_, "(find)", find, DUP);
+simpleprim(LIT, "lit", lit, FIND_);
+simpleprim(MUL, "*", mul, LIT);
+simpleprim(EXIT, "exit", exit_, MUL);
+simpleprim(COMMA, ",", comma, EXIT);
+immediateprim(LBRAC, "[", lbrac, COMMA);
+simpleprim(RBRAC, "]", rbrac, LBRAC);
+simpleprim(TERMINATE, "bye", terminate, RBRAC);
+simpleprim(ADD, "+", add, TERMINATE);
+simpleprim(SUB, "-", sub, ADD);
+simpleprim(INCR, "1+", incr, SUB);
+simpleprim(DECR, "1-", decr, INCR);
+simpleprim(BRANCH, "branch", branch, DECR);
+simpleprim(ZBRANCH, "0branch", zbranch, BRANCH);
+simpleprim(WORD, "word", word, ZBRANCH);
+simpleprim(KEY, "key", key, WORD);
+simpleprim(NUMBER, "number", number, KEY);
 
-struct word TCFA = {.prev = &DP, .name = ">cfa", .codeword = tcfa };
-
-struct word TDFA = {.prev = &TCFA, .name = ">dfa", .codeword = tdfa };
-
-struct word HIDDEN = {.prev = &TDFA, .name = "hidden", .codeword = hidden };
-
-struct word IMMEDIATE_ = {.prev = &HIDDEN, .flags = F_IMMEDIATE, .name = "immediate", .codeword = immediate };
+simpleprim(HEADERCOMMA, "header,", headercomma, NUMBER);
+simpleprim(BRACKET_TICK, "[']", bracket_tick, HEADERCOMMA);
+simpleprim(STATE, "state", compilestate, BRACKET_TICK);
+simpleprim(PAREN_DO, "(do)", paren_do, STATE);
+simpleprim(PAREN_LOOP, "(loop)", paren_loop, PAREN_DO);
+simpleprim(INNER_INDEX, "i", inner_index, PAREN_LOOP);
+simpleprim(OUTER_INDEX, "j", outer_index, INNER_INDEX);
+simpleprim(LATEST, "latest", latest, OUTER_INDEX);
+simpleprim(DP, "dp", dp, LATEST);
+simpleprim(TCFA, ">cfa", tcfa, DP);
+simpleprim(TDFA, ">dfa", tdfa, TCFA);
+simpleprim(HIDDEN, "hidden", hidden, TDFA);
+immediateprim(IMMEDIATE_, "immediate", immediate, HIDDEN);
 
 struct word COLON = {.prev = &IMMEDIATE_, .name = ":", .codeword = docol,
 		     .extra = { &WORD.codeword, &HEADERCOMMA.codeword,
@@ -877,85 +870,66 @@ void interpret(PARAMS) {
   
 }
 
+simpleprim(INTERPRET, "interpret", interpret, SEMICOLON);
+simpleprim(DODOES, "dodoes", dodoes, INTERPRET);
+simpleprim(OVER, "over", over, DODOES);
+simpleprim(SWAP, "swap", swap, OVER);
+simpleprim(ROT, "rot", rot, SWAP);
+simpleprim(NROT, "-rot", nrot, ROT);
+simpleprim(DROP, "drop", drop, NROT);
+simpleprim(TWODROP, "2drop", twodrop, DROP);
+simpleprim(TWODUP, "2dup", twodup, TWODROP);
+simpleprim(QDUP, "?dup", qdup, TWODUP);
+simpleprim(DIV, "/", _div, QDUP);
+simpleprim(MOD, "%", mod, DIV);
+simpleprim(STORE, "!", store, MOD);
+simpleprim(ADDSTORE, "+!", addstore, STORE);
 
-struct word INTERPRET = { .prev = &SEMICOLON, .name = "interpret", .codeword = interpret };
+simpleprim(SUBSTORE, "-!", substore, ADDSTORE);
+simpleprim(EXECUTE, "execute", execute, SUBSTORE);
+simpleprim(CMOVE, "cmove", cmove, EXECUTE);
+simpleprim(FETCHBYTE, "c@", fetchbyte, CMOVE);
+simpleprim(STOREBYTE, "c!", storebyte, FETCHBYTE);
+simpleprim(LITSTRING, "litstring", litstring, STOREBYTE);
 
-struct word DODOES = {.prev = &INTERPRET, .name = "dodoes", .codeword = dodoes };
+simpleprim(EQU, "=", equ, LITSTRING);
+simpleprim(NEQU, "<>", nequ, EQU);
+simpleprim(LT, "<", lt, NEQU);
+simpleprim(GT, ">", gt, LT);
+simpleprim(LTE, "<=", lte, GT);
+simpleprim(GTE, ">=", gte, LTE);
+simpleprim(ZEQU, "0=", zequ, GTE);
+simpleprim(ZNEQU, "0<>", znequ, ZEQU);
+simpleprim(ZLT,  "0<", zlt, ZNEQU);
+simpleprim(ZGT, "0>", zgt, ZLT);
 
-struct word OVER = {.prev = &DODOES, .name = "over", .codeword = over };
+simpleprim(ZLTE, "0<=", zlte, ZGT);
+simpleprim(ZGTE, "0>=", zgte, ZLTE);
 
-struct word SWAP = {.prev = &OVER, .name = "swap", .codeword = swap };
+simpleprim(BITAND, "and", bitand, ZGTE);
+simpleprim(BITOR, "or", bitor, BITAND);
+simpleprim(BITXOR, "xor", bitxor, BITOR);
+simpleprim(BITNOT, "invert", bitnot, BITXOR);
+simpleprim(SHR, "shr", shr, BITNOT);
+simpleprim(SHL, "shl", shl, SHR);
 
-struct word ROT = { .prev = &SWAP, .name = "rot", .codeword = rot };
+simpleprim(TOR, ">r", tor, SHL);
+simpleprim(FROMR, "r>", fromr, TOR);
 
-struct word NROT = { .prev = &ROT, .name = "-rot", .codeword = nrot };
+simpleprim(RSPFETCH, "rsp@", rspfetch, FROMR);
+simpleprim(RSPSTORE, "rsp!", rspstore, RSPFETCH);
+simpleprim(RDROP, "rdrop", rspdrop, RSPSTORE); 
 
-struct word DROP = { .prev = &NROT, .name = "drop", .codeword = drop };
-
-struct word TWODROP = { .prev = &DROP, .name = "2drop", .codeword = twodrop };
-
-struct word TWODUP = { .prev = &TWODROP, .name = "2dup", .codeword = twodup };
-
-struct word QDUP = { .prev = &TWODUP, .name = "?dup", .codeword = qdup };
-
-struct word DIV = {.prev = &QDUP, .name = "/", .codeword = _div };
-
-struct word MOD = {.prev = &DIV, .name = "%", .codeword = mod };
-
-struct word STORE = {.prev = &MOD, .name = "!", .codeword = store };
-
-struct word ADDSTORE = {.prev = &STORE, .name = "+!", .codeword = addstore };
-
-struct word SUBSTORE = {.prev = &ADDSTORE, .name = "-!", .codeword = substore };
-
-struct word EXECUTE = {.prev = &SUBSTORE, .name = "execute", .codeword = execute };
-
-struct word CMOVE = {.prev = &EXECUTE, .name = "cmove", .codeword = cmove };
-
-struct word FETCHBYTE = {.prev = &CMOVE, .name = "c@", .codeword = fetchbyte };
-
-struct word STOREBYTE = {.prev = &FETCHBYTE, .name = "c!", .codeword = storebyte };
-
-struct word LITSTRING = {.prev = &STOREBYTE, .name = "litstring", .codeword = litstring };
-
-#define logicalop(last, sname, fname, cword) \
-  struct word sname = { .prev = &last, .name = fname, .codeword = cword }
-
-logicalop(LITSTRING, EQU, "=", equ);
-logicalop(EQU, NEQU, "<>", nequ);
-logicalop(NEQU, LT, "<", lt);
-logicalop(LT, GT, ">", gt);
-logicalop(GT, LTE, "<=", lte);
-logicalop(LTE, GTE, ">=", gte);
-logicalop(GTE, ZEQU, "0=", zequ);
-logicalop(ZEQU, ZNEQU, "0<>", znequ);
-logicalop(ZNEQU, ZLT,  "0<", zlt);
-logicalop(ZLT, ZGT, "0>", zgt);
-
-logicalop(ZGT, ZLTE, "0<=", zlte);
-logicalop(ZLTE, ZGTE, "0>=", zgte);
-
-logicalop(ZGTE, BITAND, "and", bitand);
-logicalop(BITAND, BITOR, "or", bitor);
-logicalop(BITOR, BITXOR, "xor", bitxor);
-logicalop(BITXOR, BITNOT, "invert", bitnot);
-
-logicalop(BITNOT, TOR, ">r", tor);
-logicalop(TOR, FROMR, "r>", fromr);
-
-logicalop(FROMR, RSPFETCH, "rsp@", rspfetch);
-logicalop(RSPFETCH, RSPSTORE, "rsp!", rspstore);
-logicalop(RSPSTORE, RDROP, "rdrop", rspdrop); 
-
-logicalop(RDROP, DSPFETCH, "dsp@", dspfetch);
-logicalop(DSPFETCH, CELLS, "cellsize", cellsize);
-logicalop(CELLS, PLATFORM, "platform", platform);
-logicalop(PLATFORM, ARCH, "arch", arch);
-logicalop(ARCH, DOCOL_ADDR, "docol", docol_addr);
-logicalop(DOCOL_ADDR, STACKBASE, "s0", stackbase);
-logicalop(STACKBASE, DPBASE, "dp0", stackbase);
-logicalop(DPBASE, RET, "ret", ret);
-logicalop(RET, DSPSTORE, "dsp!", dspstore);
+simpleprim(DSPFETCH, "dsp@", dspfetch, RDROP);
+simpleprim(CELLS, "cellsize", cellsize, DSPFETCH);
+simpleprim(PLATFORM, "platform", platform, CELLS);
+simpleprim(ARCH, "arch", arch, PLATFORM);
+simpleprim(DOCOL_ADDR, "docol", docol_addr, ARCH);
+simpleprim(STACKBASE, "s0", stackbase, DOCOL_ADDR);
+simpleprim(DPBASE, "dp0", dpbase, STACKBASE);
+simpleprim(RET, "ret", ret, DPBASE);
+simpleprim(NEXTADDR, "next", nextaddr, RET);
+simpleprim(DSPSTORE, "dsp!", dspstore, NEXTADDR);
 
 
 void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)(-2*sizeof(void*)), &TERMINATE.codeword };
