@@ -515,7 +515,9 @@ void headercomma(PARAMS) {
 
   // add a new word 
   struct word *newword = (struct word*)dp;
-  __builtin_memcpy(newword->name, name, 15);
+  if (length > 0 && name ) {
+    __builtin_memcpy(newword->name, name, 15);
+  }
   newword->prev = state->latest;
   newword->flags = 0;
   newword->len = length;
@@ -749,6 +751,7 @@ void shr(PARAMS) {
 }
 
 
+
 #define simpleprim(sname, fname, cword, last)				\
   struct word sname = { .prev = &last, .name = fname, .len=sizeof(fname)-1, .codeword = cword }
 #define immediateprim(sname, fname, cword, last)				\
@@ -932,6 +935,51 @@ simpleprim(NEXTADDR, "next", nextaddr, RET);
 simpleprim(DSPSTORE, "dsp!", dspstore, NEXTADDR);
 
 
+
+struct invoke_forth_context {
+  struct usefulstate *state;
+  void *xt_codeword;
+  void *xt_context;
+};
+
+void *invoke_forth(void *context, void *a, void *b, void *c, void *d) {
+  struct invoke_forth_context *ifc = (struct invoke_forth_context*)context;
+  struct usefulstate *state = ifc->state;
+  void *datastack[128];
+  void *returnstack[64];
+
+
+  void** stacktop = &datastack[127];
+  void** retstacktop = &returnstack[63];
+
+  *(--stacktop) = d;
+  *(--stacktop) = c;
+  *(--stacktop) = b;
+  *(--stacktop) = a;
+  *(--stacktop) = ifc->xt_context;
+  *(--stacktop) = ifc->xt_codeword;
+
+  void* xtprogram[] = { &EXECUTE.codeword, &RET.codeword };
+
+  next(state, &xtprogram[0], 0, stacktop, retstacktop, &next);
+  return stacktop[127];
+}
+
+void invoke_forth_addr(PARAMS) {
+  *(--stacktop) = &invoke_forth;
+  NEXT;
+}
+
+void get_forth_state(PARAMS) {
+  *(--stacktop) = state;
+  NEXT;
+}
+
+
+
+simpleprim(INVOKE_FORTH, "invoke-forth", invoke_forth_addr, DSPSTORE);
+simpleprim(FORTH_STATE, "forth-state@", get_forth_state, INVOKE_FORTH);
+
 void* defaultprogram[] = { &INTERPRET.codeword, &BRANCH.codeword, (void*)(-2*sizeof(void*)), &TERMINATE.codeword };
 
-struct word *lastword = &DSPSTORE;
+struct word *lastword = &FORTH_STATE;

@@ -1,4 +1,4 @@
- 
+  
 : reset s0 dsp! ;
 : literal immediate ['] lit , , ;
 : here dp @ ;
@@ -130,6 +130,12 @@
   ;
 
 
+: :noname
+  0 0 header,
+  here docol ,
+  ]
+;
+
 : constant
   word
   header,
@@ -260,7 +266,7 @@
   20	\ add length (20 by definition)
 ;
 
-: sysctl ( newdatalen newdata olddatalen olddata mib-length mib -- rv )
+: sysctl-raw ( newdatalen newdata olddatalen olddata mib-length mib -- rv )
   [c] sysctl 6 end-c
  ;
 
@@ -273,11 +279,22 @@
 
 : get-darwin-ver ( -- addr len )
  0x200000001
- dsp@ >r 0 0 here 0 2 r> sysctl drop 
- dsp@ >r 0 0 here here 1 cells + 2 r> sysctl drop
+ dsp@ >r 0 0 here 0 2 r> sysctl-raw drop 
+ dsp@ >r 0 0 here here 1 cells + 2 r> sysctl-raw drop
  drop
  here 1 cells +  here @ tell
  ;
+
+
+: sysctl ( ctl var -- data len )
+  32 shl or
+  0 here !
+  dsp@ >r 0 0 here 0 2 r> sysctl-raw drop
+  dsp@ >r 0 0 here here 1 cells + 2 r> sysctl-raw drop
+  drop
+  here 1 cells + here @
+ ;
+
 
 : load-uname \ load uname into here (transiently)
   here
@@ -383,10 +400,15 @@
    xmlify get-hostname
 ; 
 
+: get-hw-product
+  6 27 sysctl tell
+ ; 
+
 : darwin-info
    xmlify get-darwin-ver
    xmlify get-etc-dir
    xmlify get-hw-uuid
+   xmlify get-hw-product
  ;
 
 : request
@@ -401,3 +423,18 @@
 
 \ dup s" kIOMasterPortDefault" drop swap c-call dlsym 2 .
 
+8 2 or s" /usr/lib/libcrypto.35.dylib" drop c-call dlopen 2
+
+\ c-call BIO_s_mem 0 c-call BIO_new 1
+
+\ s" 127.0.0.1" drop c-call inet_addr 1
+\ 0 here c! 2 here 1 + c! 0x55 here 2 + c! 0x55 here 3 + c!
+\ 0 here 1 cells + !
+\ 0 1 2 c-call socket 3
+\ >r 16 here r> c-call connect 3
+\ 0 s" test" swap 3 c-call send 4
+\ 0 128 here 3 c-call recv 4 
+
+
+\ scratch this: c-callback ' get-darwin-ver -rot dsp@ 1 cells + swap c-invoke
+\  0 ' get-darwin-ver forth-state@ dsp@ invoke-forth c-invoke
