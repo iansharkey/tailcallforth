@@ -436,5 +436,11 @@
 \ 0 128 here 3 c-call recv 4 
 
 
-\ scratch this: c-callback ' get-darwin-ver -rot dsp@ 1 cells + swap c-invoke
-\  0 ' get-darwin-ver forth-state@ dsp@ invoke-forth c-invoke
+
+: create-forth-ctx ( xt-ctx xt -- <forth-state-ptr> )
+   forth-state@ dsp@
+ ;
+ 
+
+\  0 ' get-darwin-ver create-forth-ctx invoke-forth c-invoke
+\ 0 dsp@ >r  0 ' get-darwin-ver create-forth-ctx invoke-forth 0 r> c-call pthread_create 4

@@ -949,8 +949,8 @@ void *invoke_forth(void *context, void *a, void *b, void *c, void *d) {
   void *returnstack[64];
 
 
-  void** stacktop = &datastack[127];
-  void** retstacktop = &returnstack[63];
+  void **stacktop = &datastack[127];
+  void **retstacktop = &returnstack[63];
 
   *(--stacktop) = d;
   *(--stacktop) = c;
@@ -962,7 +962,7 @@ void *invoke_forth(void *context, void *a, void *b, void *c, void *d) {
   void* xtprogram[] = { &EXECUTE.codeword, &RET.codeword };
 
   next(state, &xtprogram[0], 0, stacktop, retstacktop, &next);
-  return stacktop[127];
+  return datastack[122];
 }
 
 void invoke_forth_addr(PARAMS) {
