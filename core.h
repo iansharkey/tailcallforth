@@ -70,6 +70,7 @@ struct usefulstate {
   size_t pos;
   intptr_t length;
   void *ctx;
+  void *rv;
   enum INTERPRETER_STATE state;
   int base;
 };

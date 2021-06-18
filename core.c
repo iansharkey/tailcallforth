@@ -417,6 +417,7 @@ void dp(PARAMS) {
 }
 
 void ret(PARAMS) { // exits cleanly
+  state->rv = *stacktop;
 }
 
 
@@ -962,7 +963,7 @@ void *invoke_forth(void *context, void *a, void *b, void *c, void *d) {
   void* xtprogram[] = { &EXECUTE.codeword, &RET.codeword };
 
   next(state, &xtprogram[0], 0, stacktop, retstacktop, &next);
-  return datastack[122];
+  return state->rv;
 }
 
 void invoke_forth_addr(PARAMS) {
