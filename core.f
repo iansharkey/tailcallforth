@@ -440,7 +440,48 @@
 : create-forth-ctx ( xt-ctx xt -- <forth-state-ptr> )
    forth-state@ dsp@
  ;
- 
+
+
+: blah ( n -- funny-num ) . 0x69 ;
 
 \  0 ' get-darwin-ver create-forth-ctx invoke-forth c-invoke
-\ 0 dsp@ >r  0 ' get-darwin-ver create-forth-ctx invoke-forth 0 r> c-call pthread_create 4
+\ 0 dsp@ >r  0x55 ' blah forth-state@ dsp@ invoke-forth 0 r> c-call pthread_create 4
+
+\ 0x000070000612a928
+
+
+\ todo: create-forth-state ( create a forth state with new dp )
+\ todo: use pointer tagging for word flags
+
+
+
+\ objc stuff
+ 8 2 or s" /System/Library/Frameworks/Foundation.framework/Foundation" drop c-call dlopen 2 drop
+\ s" hello" drop
+\ s" stringWithUTF8String:" drop c-call sel_registerName 1
+\ s" NSString" drop c-call objc_getClass 1
+\ c-call objc_msgSend 3
+
+
+: nsstring ( addr -- nsstring )
+   s" stringWithUTF8String:" drop [c] sel_registerName 1 end-c
+   s" NSString" drop [c] objc_getClass 1 end-c
+   [c] objc_msgSend 3 end-c
+ ;
+
+
+: objc ( args obj -- rv )
+  word drop [c] sel_registerName 1 end-c
+  swap
+  [c] objc_msgSend 2 end-c
+  >r  word number clean-stack r>
+ ; 
+
+: objc-static ( args -- rv)
+   word drop [c] sel_registerName 1 end-c
+   word drop [c] objc_getClass 1 end-c
+   [c] objc_msgSend 2 end-c
+   >r  word number clean-stack r>
+ ;
+
+s" test" drop objc-static stringWithUTF8String: NSString 1
