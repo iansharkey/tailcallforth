@@ -62,7 +62,7 @@ struct usefulstate {
   void **stackbase;
   void **dpbase;
   void **dp;
-  int (*getnexttoken)(struct usefulstate *);
+  int (*filllinebuffer)(struct usefulstate *);
   int (*error)(struct usefulstate *);
   char token[32];
   int tokenlen;

@@ -476,7 +476,7 @@ void find(PARAMS) {
 
 int getkey(struct usefulstate *state, char *c) {
   if (state->pos == state->length) {
-    int rv = state->getnexttoken(state);
+    int rv = state->filllinebuffer(state);
     if (rv < 0) {
       return rv;
     }
@@ -685,6 +685,18 @@ void compilestate(PARAMS) {
 void latest(PARAMS) {
   *(--stacktop) = &state->latest;
 
+  NEXT;
+}
+
+
+void filllinebuffer(PARAMS) {
+  *(--stacktop) = &state->filllinebuffer;
+  NEXT;
+}
+
+void linebuffer(PARAMS) {
+  *(--stacktop) = &state->line;
+  *(--stacktop) = &state->pos;
   NEXT;
 }
 
@@ -933,7 +945,9 @@ simpleprim(STACKBASE, "s0", stackbase, DOCOL_ADDR);
 simpleprim(DPBASE, "dp0", dpbase, STACKBASE);
 simpleprim(RET, "ret", ret, DPBASE);
 simpleprim(NEXTADDR, "next", nextaddr, RET);
-simpleprim(DSPSTORE, "dsp!", dspstore, NEXTADDR);
+simpleprim(FILLLINEBUFFER, "line-fn", filllinebuffer, NEXTADDR);
+simpleprim(LINEBUFFER, "line-buf", linebuffer, FILLLINEBUFFER);
+simpleprim(DSPSTORE, "dsp!", dspstore, LINEBUFFER);
 
 
 

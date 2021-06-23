@@ -116,7 +116,7 @@ int main(int argc, char** argv)
   strcpy((char*)&(BLAH->extra[1]), "yeah");
   
   struct usefulstate state = { 0 };
-  state.getnexttoken = getline_line;
+  state.filllinebuffer = getline_line;
   state.error = print_error;
   state.dp = buffer;
   state.dpbase = buffer;
@@ -128,6 +128,12 @@ int main(int argc, char** argv)
   
   //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
 
+
+  // for a C callback, we need:
+  //  the address of some code to start a forth execution
+  //    runs next(state, "execute ret", 0, newstacktop, newretstacktop, &next)
+  //  therefore, context needs to hold pointer to state
+  // 
   
   next(&state, &defaultprogram[0], 0, stacktop, retstacktop, &next);
   
