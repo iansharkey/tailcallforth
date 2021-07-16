@@ -427,24 +427,26 @@
 
 \ c-call BIO_s_mem 0 c-call BIO_new 1
 
-\ s" 127.0.0.1" drop c-call inet_addr 1
-\ 0 here c! 2 here 1 + c! 0x55 here 2 + c! 0x55 here 3 + c!
-\ 0 here 1 cells + !
-\ 0 1 2 c-call socket 3
-\ >r 16 here r> c-call connect 3
+s" 127.0.0.1" drop c-call inet_addr 1
+0 here c! 2 here 1 + c! 0x55 here 2 + c! 0x55 here 3 + c!
+here 4 + !
+0 here 8 + !
+0 1 2 c-call socket 3
+dup >r 16 here r> c-call connect 3 drop
+
 \ 0 s" test" swap 3 c-call send 4
 \ 0 128 here 3 c-call recv 4 
 
 
 
-: create-forth-ctx ( xt-ctx xt -- <forth-state-ptr> )
+: create-4th-ctx ( xt-ctx xt -- <forth-state-ptr> )
    forth-state@ dsp@
  ;
 
 
 : blah ( n -- funny-num ) . 0x69 ;
 
-\  0 ' get-darwin-ver create-forth-ctx invoke-forth c-invoke
+\  0 ' get-darwin-ver create-4th-ctx invoke-forth c-invoke
 \ 0 dsp@ >r  0x55 ' blah forth-state@ dsp@ invoke-forth 0 r> c-call pthread_create 4
 
 \ 0x000070000612a928
@@ -463,11 +465,6 @@
 \ c-call objc_msgSend 3
 
 
-: nsstring ( addr -- nsstring )
-   s" stringWithUTF8String:" drop [c] sel_registerName 1 end-c
-   s" NSString" drop [c] objc_getClass 1 end-c
-   [c] objc_msgSend 3 end-c
- ;
 
 
 : objc ( args obj -- rv )
@@ -484,4 +481,13 @@
    >r  word number clean-stack r>
  ;
 
+: nsstring ( addr len -- nsstring )
+   drop s" stringWithUTF8String:" drop [c] sel_registerName 1 end-c
+   s" NSString" drop [c] objc_getClass 1 end-c
+   [c] objc_msgSend 3 end-c
+ ;
+
+
 s" test" drop objc-static stringWithUTF8String: NSString 1
+
+
