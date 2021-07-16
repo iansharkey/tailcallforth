@@ -11,14 +11,12 @@
 
 
 int getline_line(struct usefulstate *state) {
-  char *buf = NULL;
   size_t length = 0;
-  state->length = getline(&buf, &length, stdin);
-
-  if (state->line) {
-    free(state->line);
+  char *rv = fgets(state->line, sizeof(state->line)-1, state->instream);
+  if (rv == NULL ) {
+    return -1;
   }
-  state->line = buf;
+  state->length = strlen(state->line);
   state->pos = 0;
   
   return state->length;  
@@ -26,7 +24,7 @@ int getline_line(struct usefulstate *state) {
 
 
 int print_error(struct usefulstate *state) {
-  printf("parse error: %s", state->token);
+  fprintf(state->outstream, "parse error: %s", state->token);
   return 0;
 }
 
@@ -34,20 +32,23 @@ void tell(PARAMS) {
   intptr_t length = (intptr_t)(*stacktop++);
   char *addr = (char*)(*stacktop++);
 
-  fwrite(addr, 1, length, stdout);
+  fwrite(addr, 1, length, state->outstream);
+  fflush(state->outstream);
   NEXT;
 }
 
 
 void display_number(PARAMS) {
   void *num = *stacktop++;
-  printf("%p ", num);
+  fprintf(state->outstream, "%p ", num);
+  fflush(state->outstream);
   NEXT;
 }
 
 static void emit(PARAMS) {
   char c = (char)(*stacktop++);
-  putchar(c);
+  fputc(c, state->outstream);
+  fflush(state->outstream);
   NEXT;
 }
 
@@ -59,9 +60,16 @@ void libc_dlsym(PARAMS) {
 
 
 void _stdout(PARAMS) {
-  *(--stacktop) = (void*)stdout;
+  *(--stacktop) = (void*)&state->outstream;
   NEXT;
 }
+
+void _stdin(PARAMS) {
+  *(--stacktop) = (void*)&state->instream;
+  NEXT;
+}
+
+
 
 void invoke_c(PARAMS) {
   intptr_t (*func)() = (intptr_t (*)())*stacktop++; 
@@ -75,7 +83,6 @@ void invoke_c(PARAMS) {
   intptr_t rv = func(a,b,c,d,e,f);
 
   *(--stacktop) = (void*)rv;
-
   
   NEXT;
 }
@@ -103,27 +110,22 @@ int main(int argc, char** argv)
   struct word INVOKE_C = {.prev = &DLSYM, .name = "c-invoke", .codeword = invoke_c };
 
   struct word STDOUT = {.prev = &INVOKE_C, .name = "stdout", .codeword = _stdout };
-  
+
+  struct word STDIN = {.prev = &STDOUT, .name = "stdin", .codeword = _stdin };
 
 
-  struct word *BLAH = malloc(sizeof(struct word) + sizeof(void*)+5);
 
-  BLAH->prev = &STDOUT;
-  strcpy((char*)&BLAH->name,"blah");
-  BLAH->codeword = litstring;
-  BLAH->extra[0] = (void*)4;
-  
-  strcpy((char*)&(BLAH->extra[1]), "yeah");
-  
   struct usefulstate state = { 0 };
   state.filllinebuffer = getline_line;
   state.error = print_error;
   state.dp = buffer;
   state.dpbase = buffer;
+  state.instream = stdin;
+  state.outstream = stdout;
   *(--retstacktop) = &RET.codeword;
   state.stackbase = stacktop;
   //  state.latest = &DISPLAY_NUMBER;
-  state.latest = BLAH;
+  state.latest = &STDIN;
   state.state = IMMEDIATELY;
   
   //void* ip[] = { &WORD.codeword, &NUMBER.codeword, &QUADRUPLE.codeword, &INCR.codeword, &DUP.codeword, &LIT.codeword, (void*)-1, &MUL.codeword, &DISPLAY_NUMBER.codeword, &TERMINATE.codeword };
@@ -135,7 +137,7 @@ int main(int argc, char** argv)
   //  therefore, context needs to hold pointer to state
   // 
   
-  next(&state, &defaultprogram[0], 0, stacktop, retstacktop, &next);
+  next(&defaultprogram[0], 0, stacktop, retstacktop, &next, &state);
   
   
   return 0;

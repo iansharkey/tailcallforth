@@ -589,21 +589,21 @@ void cmove(PARAMS) {
 }
 
 void fetchbyte(PARAMS) {
-  char *addr = (char*)*stacktop++;
+  unsigned char *addr = (unsigned char*)*stacktop++;
   *(--stacktop) = (void*)(*addr);
   NEXT;
 }
 
 void storebyte(PARAMS) {
-  char *addr = (char*)(*stacktop++);
+  unsigned char *addr = (unsigned char*)(*stacktop++);
   intptr_t c = (intptr_t)(*stacktop++);
   *addr = c;
   NEXT;
 }
 
 void copybyte(PARAMS) {
-  char *dest = (char*)(*stacktop++);
-  char *src = (char*)(*stacktop++);
+  unsigned char *dest = (unsigned char*)(*stacktop++);
+  unsigned char *src = (unsigned char*)(*stacktop++);
   *dest = *src;
   *(--stacktop) = src++;
   *(--stacktop) = dest++;
@@ -976,7 +976,7 @@ void *invoke_forth(void *context, void *a, void *b, void *c, void *d) {
 
   void* xtprogram[] = { &EXECUTE.codeword, &RET.codeword };
 
-  next(state, &xtprogram[0], 0, stacktop, retstacktop, &next);
+  next(&xtprogram[0], 0, stacktop, retstacktop, &next, state);
   return state->rv;
 }
 

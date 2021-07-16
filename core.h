@@ -25,7 +25,7 @@ struct usefulstate;
         const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
         (type *)( (char *)__mptr - offsetof(type,member) );})
 
-typedef void (*block)(struct usefulstate*, void*, void*, void**, void**, void*);
+typedef void (*block)(void*, void*, void**, void**, void*, struct usefulstate*);
 
 
 
@@ -54,7 +54,7 @@ struct word {
 };
 
 
-#define PARAMS struct usefulstate *state, void* pc, void* eax, void** stacktop, void** retstacktop, void *next_
+#define PARAMS void* pc, void* eax, void** stacktop, void** retstacktop, void *next_, struct usefulstate *state
 
 
 struct usefulstate {
@@ -62,11 +62,13 @@ struct usefulstate {
   void **stackbase;
   void **dpbase;
   void **dp;
+  FILE *instream;
+  FILE *outstream;
   int (*filllinebuffer)(struct usefulstate *);
   int (*error)(struct usefulstate *);
   char token[32];
   int tokenlen;
-  char *line;
+  char line[1024];
   size_t pos;
   intptr_t length;
   void *ctx;
@@ -78,7 +80,7 @@ struct usefulstate {
 
 
 
-#define ARGS state, pc, eax, stacktop, retstacktop, next_
+#define ARGS pc, eax, stacktop, retstacktop, next_, state
 
 
 // currentcodeword: block - pointer to the codeword within a definition
