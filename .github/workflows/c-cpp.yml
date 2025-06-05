@@ -15,3 +15,11 @@ jobs:
     - uses: actions/checkout@v4
     - name: make
       run: make
+    - name: Upload tailcallforth binary
+      uses: actions/upload-artifact@v4 # Use v4 for the latest artifact features
+      with:
+        name: tailcallforth-x86_64_ubuntu # The name of the artifact (how it will appear)
+        path: tailcallforth         # The path to the file/directory you want to upload
+        # You can add a retention-days here if you want to control how long
+        # the artifact is stored (default is 90 days for public repos)
+        retention-days: 7
