@@ -72,7 +72,7 @@ void _stdin(PARAMS) {
 
 
 void invoke_c(PARAMS) {
-  intptr_t (*func)() = (intptr_t (*)())*stacktop++; 
+  intptr_t (*func)(void*, void*, void*, void*, void*, void*) = (intptr_t (*)(void*, void*, void*, void*, void*, void*))*stacktop++; 
   void *a = *stacktop;
   void *b = *(stacktop+1);
   void *c = *(stacktop+2);

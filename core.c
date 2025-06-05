@@ -9,37 +9,37 @@
 #include "core.h"
 
 // in the usual case (docol word A consisting of a list of words references b,c,d,...)
-//  pc points to the next word references in word A
-//  eax points to the current executing word reference's code field 
+//  ip points to the next word references in word A
+//  xt points to the current executing word reference's code field 
 
 // in the case of an executing primitive word
-//  pc points to the next word to execute after finishing the primitive
-//  eax points to the currently executing word's code field
+//  ip points to the next word to execute after finishing the primitive
+//  xt points to the currently executing word's code field
 
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
-  eax = *(void**)pc;
-  pc = ((void**)pc)+1;
-  block eax_ = *(block*)eax;
+  xt = *(void**)ip;
+  ip = ((void**)ip)+1;
+  block xt_ = *(block*)xt;
 
-  __attribute__((musttail)) return eax_(ARGS);
+  __attribute__((musttail)) return xt_(ARGS);
     
 }
 
 
 
 void docol(PARAMS) {
-    *(--retstacktop) = pc;
-    eax = ((void**)eax)+1;
+    *(--retstacktop) = ip;
+    xt = ((void**)xt)+1;
 
-    pc = eax;
+    ip = xt;
 
     NEXT;
 }
 
 
 void exit_(PARAMS) {
-    pc = *retstacktop++;
+    ip = *retstacktop++;
     NEXT;
 }
 
@@ -120,8 +120,8 @@ void drop(PARAMS) {
 
 
 void lit(PARAMS) {
-  *(--stacktop) = *((void**)pc);
-  pc = (void**)pc+1;
+  *(--stacktop) = *((void**)ip);
+  ip = (void**)ip+1;
   NEXT;
 }
 
@@ -346,14 +346,14 @@ struct litstring {
 
 void litstring(PARAMS) {
   // get current
-  struct litstring *str = (struct litstring*)pc;
+  struct litstring *str = (struct litstring*)ip;
   
   *(--stacktop) = (void*)&str->str;
   *(--stacktop) = (void*)str->length;
 
-  pc = (char*)pc + sizeof(struct litstring) + str->length + 1;
+  ip = (char*)ip + sizeof(struct litstring) + str->length + 1;
   int cellsize = sizeof(void*);
-  pc = (void*)(((intptr_t)pc + (cellsize - 1)) & ~(cellsize - 1));
+  ip = (void*)(((intptr_t)ip + (cellsize - 1)) & ~(cellsize - 1));
   
   NEXT;
 }
@@ -371,8 +371,8 @@ void dspstore(PARAMS) {
 
 
 void branch(PARAMS) {
-  intptr_t offset = *(intptr_t*)pc;
-  pc += offset;
+  intptr_t offset = *(intptr_t*)ip;
+  ip += offset;
 
   NEXT;
 }
@@ -381,26 +381,26 @@ void zbranch(PARAMS) {
   void* value = *stacktop++;
   if (!value)
   {
-     intptr_t offset = *(intptr_t*)pc;
-     pc += offset;
+     intptr_t offset = *(intptr_t*)ip;
+     ip += offset;
   }
   else
   {
-    pc = ((void**)pc)+1;
+    ip = ((void**)ip)+1;
   }
   NEXT;
 }
 
 void _dodoes(PARAMS) {
-  void *value = *(((void**)eax)+1);
+  void *value = *(((void**)xt)+1);
 
   if ( value ) {
-    *(--retstacktop) = pc;
-    pc = value;
+    *(--retstacktop) = ip;
+    ip = value;
   }
 
-  eax = ((void**)eax)+2;
-  *(--stacktop) = eax;
+  xt = ((void**)xt)+2;
+  *(--stacktop) = xt;
 
   
   NEXT;
@@ -445,9 +445,9 @@ TODO
 
 
 void bracket_tick(PARAMS) {
-  eax = *(void**)pc;
-  pc = ((void**)pc)+1;
-  *(--stacktop) = eax;
+  xt = *(void**)ip;
+  ip = ((void**)ip)+1;
+  *(--stacktop) = xt;
   NEXT;
 }
 
@@ -713,12 +713,12 @@ void paren_loop(PARAMS) {
   intptr_t index = (intptr_t)(*retstacktop++);
   index++;
   if (index != limit) {
-    pc = ((void**)pc) + *((intptr_t*)pc);
+    ip = ((void**)ip) + *((intptr_t*)ip);
     *(--retstacktop) = (void*)index;
     *(--retstacktop) = (void*)limit;
   }
   else {
-    pc = ((void**)pc)+1;
+    ip = ((void**)ip)+1;
   }
   
   NEXT;
@@ -741,9 +741,9 @@ void outer_index(PARAMS) {
 }
 
 void execute(PARAMS) {
-  eax = (block*)(*stacktop++);
-  block eax_ = *(block*)eax;
-  __attribute__((musttail)) return eax_(ARGS);
+  xt = (block*)(*stacktop++);
+  block xt_ = *(block*)xt;
+  __attribute__((musttail)) return xt_(ARGS);
 
   NEXT;
 }
@@ -878,7 +878,7 @@ void interpret(PARAMS) {
       state->dp = dp;
     }
     else {
-      eax = &word->codeword;
+      xt = &word->codeword;
       __attribute__((musttail)) return word->codeword(ARGS);
     }
   }

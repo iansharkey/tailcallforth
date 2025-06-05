@@ -54,7 +54,7 @@ struct word {
 };
 
 
-#define PARAMS void* pc, void* eax, void** stacktop, void** retstacktop, void *next_, struct usefulstate *state
+#define PARAMS void* ip, void* xt, void** stacktop, void** retstacktop, void *next_, struct usefulstate *state
 
 
 struct usefulstate {
@@ -80,7 +80,7 @@ struct usefulstate {
 
 
 
-#define ARGS pc, eax, stacktop, retstacktop, next_, state
+#define ARGS ip, xt, stacktop, retstacktop, next_, state
 
 
 // currentcodeword: block - pointer to the codeword within a definition
