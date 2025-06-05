@@ -16,6 +16,10 @@
 //  ip points to the next word to execute after finishing the primitive
 //  xt points to the currently executing word's code field
 
+/**
+ * NEXT - The core of the Forth inner interpreter
+ * Fetches the next word to execute and tail-calls it
+ */
 __attribute__((noinline)) void next(PARAMS) {
 //static void next(PARAMS) {
   xt = *(void**)ip;
@@ -28,6 +32,11 @@ __attribute__((noinline)) void next(PARAMS) {
 
 
 
+/**
+ * DOCOL - The code field for colon definitions
+ * Saves the current instruction pointer to the return stack
+ * and sets up to execute the words in the definition
+ */
 void docol(PARAMS) {
     *(--retstacktop) = ip;
     xt = ((void**)xt)+1;
@@ -38,12 +47,20 @@ void docol(PARAMS) {
 }
 
 
+/**
+ * EXIT - Exits the current word definition
+ * Restores the instruction pointer from the return stack
+ */
 void exit_(PARAMS) {
     ip = *retstacktop++;
     NEXT;
 }
 
 
+/**
+ * SWAP - ( x1 x2 -- x2 x1 )
+ * Exchanges the top two items on the stack
+ */
 void swap(PARAMS) {
   void *a, *b;
   a = *stacktop++;
@@ -54,12 +71,20 @@ void swap(PARAMS) {
 }
 
 
+/**
+ * OVER - ( x1 x2 -- x1 x2 x1 )
+ * Copies the second item on the stack to the top
+ */
 void over(PARAMS) {
   void *value = *(((void**)stacktop)+1);
   *(--stacktop) = value;
   NEXT;
 }
 
+/**
+ * ROT - ( x1 x2 x3 -- x2 x3 x1 )
+ * Rotates the top three items on the stack
+ */
 void rot(PARAMS) {
   void *n3 = *stacktop++;
   void *n2 = *stacktop++;
@@ -70,6 +95,10 @@ void rot(PARAMS) {
   NEXT;
 }
 
+/**
+ * -ROT - ( x1 x2 x3 -- x3 x1 x2 )
+ * Rotates the top three items on the stack in the opposite direction
+ */
 void nrot(PARAMS) {
   void *n3 = *stacktop++;
   void *n2 = *stacktop++;
@@ -81,11 +110,19 @@ void nrot(PARAMS) {
 }
 
 
+/**
+ * 2DROP - ( x1 x2 -- )
+ * Removes the top two items from the stack
+ */
 void twodrop(PARAMS) {
   stacktop += 2;
   NEXT;
 }
 
+/**
+ * 2DUP - ( x1 x2 -- x1 x2 x1 x2 )
+ * Duplicates the top two items on the stack
+ */
 void twodup(PARAMS) {
   void *n1 = *stacktop;
   void *n2 = *(stacktop+1);
@@ -97,6 +134,10 @@ void twodup(PARAMS) {
 
 
 
+/**
+ * ?DUP - ( x -- x x | 0 )
+ * Duplicates the top item if it is non-zero
+ */
 void qdup(PARAMS) {
   void *value = *stacktop;
   if (value) {
@@ -106,12 +147,20 @@ void qdup(PARAMS) {
   NEXT;
 }
 
+/**
+ * DUP - ( x -- x x )
+ * Duplicates the top item on the stack
+ */
 static void dup(PARAMS) {
   void *value = *stacktop;
   *(--stacktop) = value;
   NEXT;
 }
 
+/**
+ * DROP - ( x -- )
+ * Removes the top item from the stack
+ */
 void drop(PARAMS) {
     stacktop++;
     NEXT;
@@ -119,12 +168,20 @@ void drop(PARAMS) {
 
 
 
+/**
+ * LIT - ( -- x )
+ * Pushes the literal value that follows in the instruction stream
+ */
 void lit(PARAMS) {
   *(--stacktop) = *((void**)ip);
   ip = (void**)ip+1;
   NEXT;
 }
 
+/**
+ * + - ( n1 n2 -- n3 )
+ * Adds the top two numbers on the stack
+ */
 void add(PARAMS) {
   intptr_t a = *((intptr_t*)stacktop++);
   intptr_t b = *((intptr_t*)stacktop++);
@@ -132,6 +189,10 @@ void add(PARAMS) {
   NEXT;
 }
 
+/**
+ * - - ( n1 n2 -- n3 )
+ * Subtracts the top number from the second number
+ */
 void sub(PARAMS) {
   intptr_t n2 = *((intptr_t*)stacktop++);
   intptr_t n1 = *((intptr_t*)stacktop++);
@@ -140,6 +201,10 @@ void sub(PARAMS) {
 }
 
 
+/**
+ * * - ( n1 n2 -- n3 )
+ * Multiplies the top two numbers on the stack
+ */
 void mul(PARAMS) {
   intptr_t a = *(intptr_t*)stacktop++;
   intptr_t b = *(intptr_t*)stacktop++;
@@ -148,6 +213,10 @@ void mul(PARAMS) {
 }
 
 
+/**
+ * / - ( n1 n2 -- n3 )
+ * Divides the second number by the top number
+ */
 void _div(PARAMS) {
   intptr_t numerator = *(intptr_t*)stacktop++;
   intptr_t denominator = *(intptr_t*)stacktop++;
@@ -156,6 +225,10 @@ void _div(PARAMS) {
 }
 
 
+/**
+ * % - ( n1 n2 -- n3 )
+ * Returns the remainder of dividing the second number by the top number
+ */
 void mod(PARAMS) {
   intptr_t numerator = *(intptr_t*)stacktop++;
   intptr_t denominator = *(intptr_t*)stacktop++;
@@ -164,23 +237,39 @@ void mod(PARAMS) {
 }
 
 
+/**
+ * 1+ - ( n1 -- n2 )
+ * Increments the top number on the stack
+ */
 void incr(PARAMS) {
   *(intptr_t*)stacktop += 1;
   NEXT;
 }
 
+/**
+ * 1- - ( n1 -- n2 )
+ * Decrements the top number on the stack
+ */
 void decr(PARAMS) {
   *(intptr_t*)stacktop -= 1;
   NEXT;
 }
 
 
+/**
+ * @ - ( addr -- x )
+ * Fetches the value at the given address
+ */
 void fetch(PARAMS) {
   void **addr = (void**)(*stacktop++);
   *(--stacktop) = *addr;
   NEXT;
 }
 
+/**
+ * ! - ( x addr -- )
+ * Stores the value at the given address
+ */
 void store(PARAMS) {
   void **addr = (void**)( *stacktop++);
   void *value = *stacktop++;
@@ -188,6 +277,10 @@ void store(PARAMS) {
   NEXT;
 }
 
+/**
+ * +! - ( n addr -- )
+ * Adds the number to the value at the given address
+ */
 void addstore(PARAMS) {
   intptr_t *addr = (intptr_t*)( *stacktop++);
   intptr_t value = (intptr_t)(*stacktop++);
@@ -196,6 +289,10 @@ void addstore(PARAMS) {
   NEXT;
 }
 
+/**
+ * -! - ( n addr -- )
+ * Subtracts the number from the value at the given address
+ */
 void substore(PARAMS) {
   intptr_t *addr = (intptr_t*)( *stacktop++);
   intptr_t value = (intptr_t)(*stacktop++);
@@ -204,6 +301,10 @@ void substore(PARAMS) {
   NEXT;
 }
 
+/**
+ * , - ( x -- )
+ * Compiles a value into the dictionary
+ */
 void comma(PARAMS) {
   void **dp = state->dp;
   *dp++ = *stacktop++;
@@ -211,16 +312,28 @@ void comma(PARAMS) {
   NEXT;
 }
 
+/**
+ * [ - ( -- )
+ * Enters immediate mode
+ */
 void lbrac(PARAMS) {
     state->state = IMMEDIATELY;
     NEXT;
 }
 
+/**
+ * ] - ( -- )
+ * Enters compilation mode
+ */
 void rbrac(PARAMS) {
     state->state = COMPILING;
     NEXT;
 }
 
+/**
+ * BYE - ( n -- )
+ * Terminates the Forth system with the given exit code
+ */
 void terminate(PARAMS) {
   exit(*(intptr_t*)stacktop);
   NEXT;
@@ -279,6 +392,10 @@ void zgte(PARAMS) {
 }
 
 
+/**
+ * AND - ( x1 x2 -- x3 )
+ * Performs bitwise AND between the top two items
+ */
 void bitand(PARAMS) {
   intptr_t a = *((intptr_t*)(stacktop++));
   intptr_t b = *((intptr_t*)(stacktop++));
@@ -286,7 +403,10 @@ void bitand(PARAMS) {
   NEXT;
 }
 
-
+/**
+ * OR - ( x1 x2 -- x3 )
+ * Performs bitwise OR between the top two items
+ */
 void bitor(PARAMS) {
   intptr_t a = *((intptr_t*)(stacktop++));
   intptr_t b = *((intptr_t*)(stacktop++));
@@ -294,45 +414,66 @@ void bitor(PARAMS) {
   NEXT;
 }
 
+/**
+ * XOR - ( x1 x2 -- x3 )
+ * Performs bitwise XOR between the top two items
+ */
 void bitxor(PARAMS) {
   intptr_t a = *((intptr_t*)(stacktop++));
   intptr_t b = *((intptr_t*)(stacktop++));
   *(--stacktop) = (void*)(intptr_t)(a ^ b);
-
   NEXT;
 }
 
-
+/**
+ * INVERT - ( x1 -- x2 )
+ * Performs bitwise NOT on the top item
+ */
 void bitnot(PARAMS) {
   *stacktop = (void*)~(*(intptr_t*)stacktop);
   NEXT;
 }
 
+/**
+ * >R - ( x -- ) ( R: -- x )
+ * Moves the top item from the data stack to the return stack
+ */
+void tor(PARAMS) {
+  *(--retstacktop) = *stacktop++;
+  NEXT;
+}
 
-
+/**
+ * R> - ( -- x ) ( R: x -- )
+ * Moves the top item from the return stack to the data stack
+ */
 void fromr(PARAMS) {
   *(--stacktop) = *retstacktop++;
   NEXT;
 }
 
-
-void tor(PARAMS) {
-  *(--retstacktop) = *stacktop++;
-
-  NEXT;
-}
-
+/**
+ * RSP@ - ( -- addr )
+ * Returns the address of the top of the return stack
+ */
 void rspfetch(PARAMS) {
   *(--stacktop) = retstacktop;
   NEXT;
 }
 
+/**
+ * RSP! - ( addr -- )
+ * Sets the return stack pointer to the given address
+ */
 void rspstore(PARAMS) {
   retstacktop = *stacktop++;
   NEXT;
 }
 
-
+/**
+ * RDROP - ( -- ) ( R: x -- )
+ * Removes the top item from the return stack
+ */
 void rspdrop(PARAMS) {
   retstacktop--;
   NEXT;
@@ -344,8 +485,11 @@ struct litstring {
 };
 
 
+/**
+ * LITSTRING - ( -- addr len )
+ * Pushes the address and length of the string literal that follows
+ */
 void litstring(PARAMS) {
-  // get current
   struct litstring *str = (struct litstring*)ip;
   
   *(--stacktop) = (void*)&str->str;
@@ -358,25 +502,39 @@ void litstring(PARAMS) {
   NEXT;
 }
 
+/**
+ * DSP@ - ( -- addr )
+ * Returns the address of the top of the data stack
+ */
 void dspfetch(PARAMS) {
   void *value = stacktop;
   *(--stacktop) = value;
   NEXT;
 }
 
+/**
+ * DSP! - ( addr -- )
+ * Sets the data stack pointer to the given address
+ */
 void dspstore(PARAMS) {
   stacktop = (void**)*stacktop;
   NEXT;
 }
 
-
+/**
+ * BRANCH - ( -- )
+ * Unconditionally branches to the offset that follows
+ */
 void branch(PARAMS) {
   intptr_t offset = *(intptr_t*)ip;
   ip += offset;
-
   NEXT;
 }
 
+/**
+ * 0BRANCH - ( flag -- )
+ * Branches to the offset that follows if flag is zero
+ */
 void zbranch(PARAMS) {
   void* value = *stacktop++;
   if (!value)
@@ -406,17 +564,29 @@ void _dodoes(PARAMS) {
   NEXT;
 }
 
+/**
+ * DODOES - ( -- )
+ * Sets up a DOES> word to execute
+ */
 void dodoes(PARAMS) {
   *(--stacktop) = &_dodoes;
   NEXT;
 }
 
+/**
+ * DP - ( -- addr )
+ * Returns the address of the dictionary pointer
+ */
 void dp(PARAMS) {
   *(--stacktop) = &state->dp;
   NEXT;
 }
 
-void ret(PARAMS) { // exits cleanly
+/**
+ * RET - ( x -- )
+ * Returns from the current word with the given value
+ */
+void ret(PARAMS) {
   state->rv = *stacktop;
 }
 
@@ -456,6 +626,11 @@ void nextaddr(PARAMS) {
   NEXT;
 }
 
+/**
+ * FIND - ( addr len -- word|0 )
+ * Searches the dictionary for a word with the given name
+ * Returns the word if found, 0 if not found
+ */
 void find(PARAMS) {
   struct word *word = state->latest;
 
@@ -488,6 +663,10 @@ int getkey(struct usefulstate *state, char *c) {
 
 
 
+/**
+ * KEY - ( -- char )
+ * Reads a single character from the input stream
+ */
 void key(PARAMS) {
   char c;
   int rv = getkey(state, &c);
@@ -497,18 +676,30 @@ void key(PARAMS) {
 
 
 
+/**
+ * >CFA - ( word -- addr )
+ * Converts a word to its code field address
+ */
 void tcfa(PARAMS) {
   struct word *word = (struct word*)*stacktop++;
   *(--stacktop) = &word->codeword;
   NEXT;
 }
 
+/**
+ * >DFA - ( word -- addr )
+ * Converts a word to its data field address
+ */
 void tdfa(PARAMS) {
   struct word *word = (struct word*)*stacktop++;
   *(--stacktop) = &word->extra;
   NEXT;
 }
 
+/**
+ * HEADER, - ( addr len -- )
+ * Creates a new word header in the dictionary
+ */
 void headercomma(PARAMS) {
   int length = *((intptr_t*)stacktop++);
   char *name = *((char**)stacktop++);
@@ -529,40 +720,68 @@ void headercomma(PARAMS) {
   NEXT;
 }
 
+/**
+ * IMMEDIATE - ( -- )
+ * Makes the most recently defined word immediate
+ */
 void immediate(PARAMS) {
   state->latest->flags ^= F_IMMEDIATE;
   NEXT;
 }
 
 
+/**
+ * CELLSIZE - ( -- n )
+ * Returns the size of a cell in bytes
+ */
 void cellsize(PARAMS) {
   *(--stacktop) = sizeof(void*);
   NEXT;
 }
 
 
+/**
+ * PLATFORM - ( -- addr len )
+ * Returns the name of the current platform
+ */
 void platform(PARAMS) {
   *(--stacktop) = TAILCALL_FORTH_PLATFORM_NAME;
   *(--stacktop) = sizeof(TAILCALL_FORTH_PLATFORM_NAME);
   NEXT;
 }
 
+/**
+ * ARCH - ( -- addr len )
+ * Returns the name of the current architecture
+ */
 void arch(PARAMS) {
   *(--stacktop) = TAILCALL_FORTH_ARCH_NAME;
   *(--stacktop) = sizeof(TAILCALL_FORTH_ARCH_NAME);
   NEXT;
 }
 
+/**
+ * DOCOL - ( -- addr )
+ * Returns the address of the DOCOL word
+ */
 void docol_addr(PARAMS) {
   *(--stacktop) = (void*)docol;
   NEXT;
 }
 
+/**
+ * S0 - ( -- addr )
+ * Returns the address of the bottom of the data stack
+ */
 void stackbase(PARAMS) {
   *(--stacktop) = state->stackbase;
   NEXT;
 }
 
+/**
+ * DP0 - ( -- addr )
+ * Returns the address of the bottom of the dictionary
+ */
 void dpbase(PARAMS) {
   *(--stacktop) = state->dpbase;
   NEXT;
@@ -570,12 +789,20 @@ void dpbase(PARAMS) {
 
 
 
+/**
+ * HIDDEN - ( word -- )
+ * Toggles the hidden flag of a word
+ */
 void hidden(PARAMS) {
   struct word *word = (struct word*)(*stacktop++);
   word->flags ^= F_HIDDEN;
   NEXT;
 }
 
+/**
+ * CMOVE - ( addr1 addr2 len -- )
+ * Copies len bytes from addr1 to addr2
+ */
 void cmove(PARAMS) {
   intptr_t length = (intptr_t)(*stacktop++);
   char *dest = (char*)(*stacktop++);
@@ -588,12 +815,20 @@ void cmove(PARAMS) {
   NEXT;
 }
 
+/**
+ * C@ - ( addr -- char )
+ * Fetches a byte from the given address
+ */
 void fetchbyte(PARAMS) {
   unsigned char *addr = (unsigned char*)*stacktop++;
   *(--stacktop) = (void*)(*addr);
   NEXT;
 }
 
+/**
+ * C! - ( char addr -- )
+ * Stores a byte at the given address
+ */
 void storebyte(PARAMS) {
   unsigned char *addr = (unsigned char*)(*stacktop++);
   intptr_t c = (intptr_t)(*stacktop++);
@@ -601,6 +836,10 @@ void storebyte(PARAMS) {
   NEXT;
 }
 
+/**
+ * COPYBYTE - ( addr1 addr2 -- addr1+1 addr2+1 )
+ * Copies a byte from addr1 to addr2 and increments both addresses
+ */
 void copybyte(PARAMS) {
   unsigned char *dest = (unsigned char*)(*stacktop++);
   unsigned char *src = (unsigned char*)(*stacktop++);
@@ -655,6 +894,10 @@ int _word(PARAMS) {
 }
 
 
+/**
+ * WORD - ( -- addr len )
+ * Reads a word from the input stream
+ */
 void word(PARAMS) {
   int rv = _word(ARGS);
   
@@ -666,6 +909,10 @@ void word(PARAMS) {
 
 
 
+/**
+ * NUMBER - ( addr len -- n )
+ * Converts a string to a number
+ */
 void number(PARAMS) {
   intptr_t length = *((intptr_t*)stacktop++);
   char *s = *stacktop++;
@@ -677,11 +924,19 @@ void number(PARAMS) {
 
 
 
+/**
+ * STATE - ( -- addr )
+ * Returns the address of the interpreter state
+ */
 void compilestate(PARAMS) {
   *(--stacktop) = &state->state;
   NEXT;
 }
 
+/**
+ * LATEST - ( -- addr )
+ * Returns the address of the most recently defined word
+ */
 void latest(PARAMS) {
   *(--stacktop) = &state->latest;
 
@@ -689,17 +944,29 @@ void latest(PARAMS) {
 }
 
 
+/**
+ * LINE-FN - ( -- addr )
+ * Returns the address of the line buffer fill function
+ */
 void filllinebuffer(PARAMS) {
   *(--stacktop) = &state->filllinebuffer;
   NEXT;
 }
 
+/**
+ * LINE-BUF - ( -- addr1 addr2 )
+ * Returns the addresses of the line buffer and position
+ */
 void linebuffer(PARAMS) {
   *(--stacktop) = &state->line;
   *(--stacktop) = &state->pos;
   NEXT;
 }
 
+/**
+ * (DO) - ( limit start -- ) ( R: -- start limit )
+ * Sets up a DO loop
+ */
 void paren_do(PARAMS) {
   void *a = *stacktop++;
   void *b = *stacktop++;
@@ -708,6 +975,10 @@ void paren_do(PARAMS) {
   NEXT;
 }
 
+/**
+ * (LOOP) - ( -- ) ( R: start limit -- start limit )
+ * Increments the loop counter and branches if not done
+ */
 void paren_loop(PARAMS) {
   intptr_t limit = (intptr_t)(*retstacktop++);
   intptr_t index = (intptr_t)(*retstacktop++);
@@ -724,22 +995,38 @@ void paren_loop(PARAMS) {
   NEXT;
 }
 
+/**
+ * UNLOOP - ( -- ) ( R: start limit -- )
+ * Removes the loop control parameters from the return stack
+ */
 void unloop(PARAMS) {
   retstacktop++;
   retstacktop++;
   NEXT;  
 }
 
+/**
+ * I - ( -- n ) ( R: start limit -- start limit )
+ * Returns the current loop index
+ */
 void inner_index(PARAMS) {
   *(--stacktop) = *retstacktop;
   NEXT;
 }
 
+/**
+ * J - ( -- n ) ( R: start1 limit1 start2 limit2 -- start1 limit1 start2 limit2 )
+ * Returns the outer loop index
+ */
 void outer_index(PARAMS) {
   *(--stacktop) = *((void**)retstacktop+1);
   NEXT;
 }
 
+/**
+ * EXECUTE - ( xt -- )
+ * Executes the word at the given execution token
+ */
 void execute(PARAMS) {
   xt = (block*)(*stacktop++);
   block xt_ = *(block*)xt;
@@ -749,6 +1036,10 @@ void execute(PARAMS) {
 }
 
 
+/**
+ * SHL - ( x1 x2 -- x3 )
+ * Shifts x1 left by x2 bits
+ */
 void shl(PARAMS) {
   uintptr_t amount = (intptr_t)*stacktop++;
   uintptr_t v = (intptr_t)*stacktop++;
@@ -756,6 +1047,10 @@ void shl(PARAMS) {
   NEXT;
 }
 
+/**
+ * SHR - ( x1 x2 -- x3 )
+ * Shifts x1 right by x2 bits
+ */
 void shr(PARAMS) {
   uintptr_t amount = (intptr_t)*stacktop++;
   uintptr_t v = (intptr_t)*stacktop++;
@@ -819,6 +1114,10 @@ struct word SEMICOLON = { .prev = &COLON, .flags = F_IMMEDIATE, .name = ";", .co
 				&HIDDEN.codeword,
 				&LBRAC.codeword, &EXIT.codeword } };
 
+/**
+ * INTERPRET - ( -- )
+ * The main interpreter loop
+ */
 void interpret(PARAMS) {
   errno = 0;
   int rv = _word(ARGS);
@@ -883,7 +1182,6 @@ void interpret(PARAMS) {
     }
   }
   NEXT; 
-  
 }
 
 simpleprim(INTERPRET, "interpret", interpret, SEMICOLON);
