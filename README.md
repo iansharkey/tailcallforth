@@ -10,6 +10,6 @@ make
 To use on a Posix system:
 
 ```
-cat core.f - | ./tailcallforth
+cat core.f posix.f - | ./tailcallforth
 ```
 
